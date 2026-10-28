@@ -1,0 +1,694 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NDC/NAP Costing Tool – Prototype</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f7fa;--card:#fff;--ink:#14213d;--mut:#586478;--line:#d6dee8;--navy:#12355b;--teal:#0f8b8d;--wbg:#fff4d6;--wink:#6b4500;--bad:#b3261e;--good:#1b7a3d;--inp:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1620;--card:#16212d;--ink:#e8eef5;--mut:#9aa8ba;--line:#2a3745;--navy:#8fb8e8;--teal:#4fc3c5;--wbg:#3a2f12;--wink:#f0c36a;--bad:#ff8a80;--good:#7bd88f;--inp:#101a24}}
+:root[data-theme="dark"]{--bg:#0e1620;--card:#16212d;--ink:#e8eef5;--mut:#9aa8ba;--line:#2a3745;--navy:#8fb8e8;--teal:#4fc3c5;--wbg:#3a2f12;--wink:#f0c36a;--bad:#ff8a80;--good:#7bd88f;--inp:#101a24}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:1100px;margin:0 auto;padding:16px}
+h1{margin:0;color:var(--navy);font-size:26px}h2{color:var(--navy);font-size:18px;margin:0 0 10px}
+.tag{background:var(--teal);color:#fff;border-radius:99px;padding:2px 10px;font-size:12px;vertical-align:middle;margin-left:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0}
+.mut{color:var(--mut);font-size:13px}.note{background:var(--wbg);color:var(--wink);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:14px}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+label{display:block;font-size:12px;color:var(--mut)}textarea{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--inp);color:var(--ink);font:inherit}input,select{width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--inp);color:var(--ink);font:inherit}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}th{color:var(--mut);font-weight:600;white-space:nowrap}td.n,th.n{text-align:right}
+.t input,.t select{min-width:86px}.t td:first-child input{min-width:230px}.t select[data-k=bm]{min-width:300px}
+.ti td{vertical-align:top}.ti input[type=text]{min-width:250px}.ti input[type=number]{min-width:74px;max-width:120px}.ti select{min-width:150px}.ti input[type=checkbox]{width:auto;margin-top:8px}.fl{font-size:12px;color:var(--mut);max-width:360px}.fl b{color:var(--bad);font-weight:600}
+button{background:var(--navy);color:var(--card);border:0;border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer;margin:0 6px 6px 0}button.s{background:transparent;color:var(--navy);border:1px solid var(--navy)}
+.k{background:var(--bg);border-radius:8px;padding:10px 12px}.k b{display:block;font-size:20px;color:var(--navy)}.k span{font-size:12px;color:var(--mut)}
+.pos{color:var(--good)}.neg{color:var(--bad)}details summary{cursor:pointer;color:var(--navy);font-weight:600}
+</style></head><body><div class="w">
+<h1>NDC/NAP Costing Tool<span class="tag">Prototype</span></h1>
+<p class="mut">Estimate indicative costs, financing and cost-benefit results for climate actions. All calculations run in your browser; nothing you enter is sent anywhere.</p>
+<div class="note"><b>Indicative estimates only.</b> Costs are adjusted with a country price-level index; benefit figures in the loaded example are illustrative placeholders. Replace them with project-specific data before using results in a budget or investment decision.</div>
+<div class="card"><h2>1. Assumptions</h2><div class="g" id="params"></div></div>
+<div class="card" id="imp"><h2>Import activities and cost them for a location</h2>
+<p class="mut">Upload a concept note or theory of change (PDF) or an activity list (Excel or CSV), and choose a country or region. The tool finds the activities, matches each one to benchmark costs and prices them for that location. Files are read in your browser and never uploaded. This is rule-based and approximate: review every row before adding it.</p>
+<div class="g"><div><label for="impLoc">1. Location</label><select id="impLoc"></select><div class="mut" id="impLocInfo" style="margin-top:4px"></div></div>
+<div><label for="impFile">2. File (PDF, .xlsx, .csv or .txt)</label><input type="file" id="impFile" accept=".pdf,.xlsx,.xlsm,.csv,.tsv,.txt"></div></div>
+<details style="margin-top:8px"><summary>Or paste text</summary><textarea id="impText" rows="6" placeholder="Paste a concept note, theory of change or list of activities"></textarea><button class="s" id="impPaste" style="margin-top:6px">Find activities in this text</button></details>
+<div id="impMsg" role="status" style="margin-top:8px"></div><div class="sc"><table class="ti" id="impTbl"></table></div><div id="impBtns"></div></div>
+<div class="card"><h2>2. Interventions</h2>
+<button id="ex">Load worked example (SCCIWM)</button><button class="s" id="add">Add intervention</button><button class="s" id="clr">Clear all</button>
+<button class="s" id="sv">Save scenario</button><button class="s" id="ld">Open scenario</button><input type="file" id="lf" accept=".json,application/json" hidden><div id="scmsg" class="mut" role="status" style="margin-bottom:8px"></div>
+<div class="sc"><table class="t" id="tbl"></table></div>
+<p class="mut">Base cost = quantity × unit cost. Use quantity 1 and enter a lump sum if you only have a budget total. Countries marked “N/A” are not price-adjusted (for example, programme management fees). Picking a benchmark sets the unit cost (then set Qty to the number of units shown in the Unit column) to the median of comparable Adaptation Fund budget lines and gives a low–high range (25th–75th percentile). Benchmarks are nominal USD from projects in 10 countries by default; choose “Kenya price level” under Assumptions to rebase them to Kenya prices (experimental).</p></div>
+<div class="card" id="res"><h2>3. Results</h2><button id="xl" style="float:right">Download Excel</button><button id="pdf" class="s" style="float:right">Download PDF</button><div id="warn"></div><div class="g" id="kpi"></div></div>
+<div class="card"><h2>Annual cost and benefit, portfolio (USD)</h2><div class="sc" id="chart"></div></div>
+<div class="card"><h2>Cost-benefit by intervention</h2><div class="sc"><table id="cba"></table></div>
+<p class="mut">Enabling components (outreach, coordination, management) often show a benefit-cost ratio below 1 on monetised benefits alone, because their value is realised through the productive components.</p></div>
+<div class="card"><h2>Sensitivity: portfolio NPV and benefit-cost ratio</h2><div class="sc" id="sens"></div></div>
+<div class="card"><details><summary>How the numbers are calculated</summary>
+<p>1) Base cost = quantity × unit cost (a benchmark median if you pick one; its 25th–75th percentile range gives the low–high cost, assuming all items sit at the low or high end together). 2) Geo-adjusted cost = base × country cost index (Kenya = 1.00, derived from World Bank price level data). 3) Spending is phased by the chosen method. 4) CAPEX interventions incur O&amp;M each year equal to the O&amp;M rate × cumulative prior CAPEX, continuing for the whole evaluation period. 5) Costs and benefits are discounted to the start year. 6) Benefits ramp up linearly from their start year to the steady-state amount. NPV, benefit-cost ratio, IRR and payback follow from the discounted flows. Contingency is shown on top of geo-adjusted cost for budgeting and is not included in the cost-benefit analysis.</p>
+<p>Importing activities: a PDF, Excel/CSV list or pasted text is read in your browser. Activities are found by rules (bullet points, numbered items, “will train…” sentences, table rows), matched to one of the 11 activity groups by keywords, and priced from the benchmark library using any quantity and unit found in the text. A cost stated in the file is used as stated and is not price-adjusted. Benchmarks marked indicative only, or needing a quantity, are left unticked. The location’s cost index is then applied; a region uses the unweighted average of its countries with data. Review every imported row.</p>
+<p>Benchmark price basis: “Kenya price level” divides each Adaptation Fund unit cost by the cost index of its source country (World Bank 2024 price level, PPP conversion factor ÷ official exchange rate, relative to Kenya) before taking medians and percentiles. It uses a reconstructed classification of the 662 rows, not the reviewed draft taxonomy, and does not adjust for inflation.</p>
+<p>Limitations: benchmarks come from 662 itemised Adaptation Fund budget lines in 13 projects across 10 countries, grouped into activity types and unit families by a first-pass rule set that has not yet been expert-reviewed. They are nominal USD from different years and countries. Cells with few observations or projects are marked indicative only, and activities with no stated unit are left out. Four African countries have no price-level data (Eritrea, Guinea, Somalia, South Sudan); a proxy index must be entered. Liberia’s index uses its US-dollar PPP series and should be confirmed against the World Bank source.</p></details></div>
+</div>
+<script id="model">
+const PH={Upfront:[1],Even:[1,1,1,1,1,1].map(x=>x/6),Even_4yr:[.25,.25,.25,.25],Phased_50_30_20:[.5,.3,.2],Phased_40_20_15_10_10_5:[.4,.2,.15,.1,.1,.05]};
+function irr(cf){if(!(cf.some(x=>x>0)&&cf.some(x=>x<0)))return null;const f=r=>cf.reduce((s,x,t)=>s+x/Math.pow(1+r,t),0);let lo=-0.9,hi=5;if(f(lo)*f(hi)>0)return null;for(let i=0;i<200;i++){const m=(lo+hi)/2;if(f(lo)*f(m)<=0)hi=m;else lo=m}return(lo+hi)/2}
+function metrics(C,B,r){let pc=0,pb=0,cum=0,neg=0;const cf=[];C.forEach((c,t)=>{const d=1/Math.pow(1+r,t);pc+=c*d;pb+=B[t]*d;cf.push(B[t]-c);cum+=B[t]-c;if(cum<0)neg++});return{pc,pb,npv:pb-pc,bcr:pc>0?pb/pc:null,irr:irr(cf),payback:neg>=C.length?null:neg+1}}
+function runModel(P,rows,geo){const H=P.horizon,warn=new Set(),out=[];const PC=new Array(H).fill(0),PB=new Array(H).fill(0);let base=0,gcost=0,intl=0,gLo=0,gHi=0,nB=0,nL=0;
+rows.forEach(r=>{const b=(+r.qty||0)*(+r.unit||0);let idx=1;if(r.country!=='N/A'){const g=geo[r.country];if(g==null){idx=+P.proxy||1;warn.add(r.country)}else idx=g}
+const uc=+r.unit||0,q=+r.qty||0,bl=q*(r.lo!=null?+r.lo:uc),bh=q*(r.hi!=null?+r.hi:uc);gLo+=bl*idx;gHi+=bh*idx;if(r.bm){nB++;if(r.conf==="Low")nL++}const gc=b*idx,ph=PH[r.phasing]||PH.Even_4yr,n=ph.length,cap=[],opx=[];let capT=0;
+for(let k=0;k<n;k++){const s=gc*ph[k];cap[k]=r.type==='CAPEX'?s:0;opx[k]=r.type==='CAPEX'?0:s;capT+=cap[k]}
+const C=[],B=[];let cum=0;const bs=+r.benStart,rp=Math.max(1,+r.ramp||1),st=bs+rp-1,ss=+r.ben||0;
+for(let t=0;t<H;t++){if(t<n){C[t]=cap[t]+opx[t]+P.om*cum;cum+=cap[t]}else C[t]=P.om*capT;
+const y=P.startYear+t;B[t]=y<bs?0:(y<st?ss*(y-bs+1)/rp:ss);PC[t]+=C[t];PB[t]+=B[t]}
+base+=b;gcost+=gc;intl+=gc*(+r.intl)/100;out.push({name:r.name,geoCost:gc,C,B,...metrics(C,B,P.disc)})});
+const port=metrics(PC,PB,P.disc);const rates=[P.discLo,P.disc,P.discHi],fs=[1+P.bLo,1,1+P.bHi];
+const grid=(fn)=>rates.map(r=>fs.map(f=>fn(r,f)));
+const npv=grid((r,f)=>PC.reduce((s,c,t)=>s+(f*PB[t]-c)/Math.pow(1+r,t),0));
+const bcr=grid((r,f)=>{let a=0,c=0;PC.forEach((x,t)=>{const d=1/Math.pow(1+r,t);a+=f*PB[t]*d;c+=x*d});return c>0?a/c:null});
+return{rows:out,port,PC,PB,npv,bcr,rates,fs,base,gcost,cont:gcost*P.cont,grand:gcost*(1+P.cont),intl,dom:gcost-intl,gLo,gHi,nB,nL,warn:[...warn]}}
+</script>
+<script id="scenario">
+const SC_PKEYS=["cont","om","disc","startYear","horizon","discLo","discHi","bLo","bHi","proxy","benef"];
+function scenarioToJson(P,rows){const p={};SC_PKEYS.forEach(k=>p[k]=P[k]);const rf=["name","sector","country","type","bm","qty","unit","phasing","intl","ben","benStart","ramp"];
+return JSON.stringify({format:"ndc-nap-costing-scenario",version:1,savedAt:new Date().toISOString(),basis:(typeof BASIS==="string"?BASIS:"nominal"),params:p,interventions:rows.map(r=>{const o={};rf.forEach(k=>o[k]=r[k]===undefined?null:r[k]);return o})},null,2)}
+function parseScenario(text,ctx){
+const {GEO,LIB,PH,D}=ctx,warn=[],own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+let o;try{o=JSON.parse(text)}catch(e){throw new Error("This file is not valid JSON.")}
+if(!o||typeof o!=="object"||o.format!=="ndc-nap-costing-scenario")throw new Error("This is not a scenario file saved by this tool.");
+if(o.version!==1)throw new Error("This scenario file has an unsupported version ("+o.version+").");
+if(!Array.isArray(o.interventions))throw new Error("The scenario file has no interventions list.");
+if(o.interventions.length>200)throw new Error("The scenario file has more than 200 interventions.");
+const num=(v,d,lo,hi,label,int)=>{let x=typeof v==="number"?v:(typeof v==="string"&&v.trim()!==""?Number(v):NaN);if(!Number.isFinite(x)){warn.push(label+": missing or not a number; "+d+" used.");return d}
+if(int)x=Math.round(x);if(x<lo||x>hi){const c=Math.min(hi,Math.max(lo,x));warn.push(label+": "+x+" is out of range; "+c+" used.");return c}return x};
+const str=(v,n)=>typeof v==="string"?v.slice(0,n):"";
+const src=o.params&&typeof o.params==="object"?o.params:{},P={...D};
+P.cont=num(src.cont,D.cont,0,5,"Contingency");P.om=num(src.om,D.om,0,5,"O&M rate");P.disc=num(src.disc,D.disc,-0.5,5,"Discount rate");
+P.startYear=num(src.startYear,D.startYear,1990,2100,"Start year",true);P.horizon=num(src.horizon,D.horizon,6,30,"Evaluation period",true);
+P.discLo=num(src.discLo,D.discLo,-0.5,5,"Low discount rate");P.discHi=num(src.discHi,D.discHi,-0.5,5,"High discount rate");
+P.bLo=num(src.bLo,D.bLo,-1,10,"Low benefit scenario");P.bHi=num(src.bHi,D.bHi,-1,10,"High benefit scenario");
+P.proxy=num(src.proxy,D.proxy,0.01,10,"Proxy index");P.benef=num(src.benef,D.benef,0,1e12,"People reached");
+const rows=o.interventions.map((s,i)=>{const L="Row "+(i+1)+" ";if(!s||typeof s!=="object"){warn.push(L+"was not an object; skipped.");return null}
+const r={name:str(s.name,300)||"Intervention "+(i+1),sector:str(s.sector,300)};
+if(s.country==="N/A"||(typeof s.country==="string"&&own(GEO,s.country)))r.country=s.country;else{warn.push(L+"country "+JSON.stringify(str(s.country,60))+" not recognised; set to N/A (not price-adjusted).");r.country="N/A"}
+if(s.type==="CAPEX"||s.type==="OPEX")r.type=s.type;else{warn.push(L+"type missing; CAPEX used.");r.type="CAPEX"}
+if(typeof s.phasing==="string"&&own(PH,s.phasing))r.phasing=s.phasing;else{warn.push(L+"phasing not recognised; Even_4yr used.");r.phasing="Even_4yr"}
+r.qty=num(s.qty,0,0,1e15,L+"quantity");r.unit=num(s.unit,0,0,1e15,L+"unit cost");r.intl=num(s.intl,100,0,100,L+"international finance %");
+r.ben=num(s.ben,0,0,1e15,L+"benefit");r.benStart=num(s.benStart,P.startYear,1990,2100,L+"benefit start",true);r.ramp=num(s.ramp,1,1,30,L+"ramp-up",true);
+const b=typeof s.bm==="string"&&s.bm?LIB.find(x=>x.id===s.bm):null;
+if(b&&Math.abs(r.unit-b.med)<1e-9){r.bm=b.id;r.lo=b.lo;r.hi=b.hi;r.ulab=b.u;r.conf=b.c}else{if(s.bm)warn.push(L+"benchmark "+JSON.stringify(str(s.bm,40))+" no longer matches its unit cost; treated as custom.");r.bm="";r.lo=r.hi=null;r.ulab="";r.conf=""}
+return r}).filter(Boolean);
+return{P,rows,warn}}
+</script>
+<script id="import">
+/* ===== Import engine: regions, file readers (CSV, XLSX, PDF), pure functions ===== */
+const REGIONS={
+"North Africa":["Algeria","Egypt","Libya","Mauritania","Morocco","Tunisia"],
+"West Africa":["Benin","Burkina Faso","Cabo Verde","Cote d'Ivoire","Gambia","Ghana","Guinea","Guinea-Bissau","Liberia","Mali","Niger","Nigeria","Senegal","Sierra Leone","Togo"],
+"Central Africa":["Burundi","Cameroon","Central African Republic","Chad","DR Congo","Equatorial Guinea","Gabon","Republic of Congo","Sao Tome and Principe"],
+"East Africa":["Comoros","Djibouti","Eritrea","Ethiopia","Kenya","Madagascar","Mauritius","Rwanda","Seychelles","Somalia","South Sudan","Sudan","Tanzania","Uganda"],
+"Southern Africa":["Angola","Botswana","Eswatini","Lesotho","Malawi","Mozambique","Namibia","South Africa","Zambia","Zimbabwe"]};
+const REGION_SUFFIX=" (regional average)";
+function regionStats(geo){const out={};for(const [r,list] of Object.entries(REGIONS)){const v=list.map(c=>({c,v:geo[c]})).filter(x=>typeof x.v==="number");
+ if(v.length)out[r+REGION_SUFFIX]={idx:v.reduce((a,x)=>a+x.v,0)/v.length,n:v.length,total:list.length,lo:Math.min(...v.map(x=>x.v)),hi:Math.max(...v.map(x=>x.v)),missing:list.filter(c=>typeof geo[c]!=="number")}}return out}
+/* ---- bytes helpers ---- */
+const latin1=u8=>{let s="";for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return s};
+const toU8=s=>{const u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i)&255;return u};
+async function inflateBytes(u8,fmt){
+ if(typeof DecompressionStream==="undefined")throw new Error("This browser cannot open compressed files. Paste the text instead, or use a CSV file.");
+ const ds=new DecompressionStream(fmt),w=ds.writable.getWriter();w.write(u8).catch(()=>{});w.close().catch(()=>{});
+ const rd=ds.readable.getReader(),ch=[];let n=0;for(;;){const r=await rd.read();if(r.done)break;ch.push(r.value);n+=r.value.length}
+ const out=new Uint8Array(n);let o=0;for(const c of ch){out.set(c,o);o+=c.length}return out}
+/* ---- CSV ---- */
+function csvParse(text){text=String(text).replace(/^\uFEFF/,"");const first=text.split(/\r?\n/).find(l=>l.trim())||"";
+ const cnt=ch=>(first.match(new RegExp(ch==="\t"?"\t":"\\"+ch,"g"))||[]).length;let d=",";if(cnt(";")>cnt(d))d=";";if(cnt("\t")>cnt(d))d="\t";
+ const rows=[];let row=[],f="",q=false;for(let i=0;i<text.length;i++){const c=text[i];
+  if(q){if(c==='"'){if(text[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+  else if(c==='"')q=true;else if(c===d){row.push(f);f=""}else if(c==="\n"||c==="\r"){if(c==="\r"&&text[i+1]==="\n")i++;row.push(f);f="";rows.push(row);row=[]}else f+=c}
+ if(f!==""||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>String(x).trim()!==""))}
+/* ---- XLSX (zip + xml, no libraries) ---- */
+async function zipEntries(u8){const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);let e=-1;for(let i=u8.length-22;i>=Math.max(0,u8.length-70000);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break}}
+ if(e<0)throw new Error("This does not look like an .xlsx file.");const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const ent={};
+ for(let k=0;k<n;k++){if(dv.getUint32(p,true)!==0x02014b50)break;const meth=dv.getUint16(p+10,true),cs=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+  const name=new TextDecoder().decode(u8.subarray(p+46,p+46+nl));ent[name]={meth,cs,off};p+=46+nl+el+cl}
+ ent.__read=async name=>{const x=ent[name];if(!x)return null;const nl=dv.getUint16(x.off+26,true),el=dv.getUint16(x.off+28,true),s=x.off+30+nl+el,d=u8.subarray(s,s+x.cs);return x.meth===0?d:await inflateBytes(d,"deflate-raw")};return ent}
+const xmlText=s=>s.replace(/<[^>]+>/g,"").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(m,d)=>String.fromCharCode(+d)).replace(/&amp;/g,"&");
+const colNum=s=>{let n=0;for(const ch of s)n=n*26+ch.charCodeAt(0)-64;return n-1};
+async function xlsxRows(u8){const z=await zipEntries(u8),dec=async n=>{const d=await z.__read(n);return d?new TextDecoder().decode(d):null};
+ const ss=[];const sx=await dec("xl/sharedStrings.xml");if(sx)for(const m of sx.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g))ss.push(xmlText([...m[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>x[1]).join("")));
+ let path=null;const wb=await dec("xl/workbook.xml"),rel=await dec("xl/_rels/workbook.xml.rels");
+ if(wb&&rel){const sheets=[...wb.matchAll(/<sheet\b[^>]*>/g)].map(m=>({n:(m[0].match(/name="([^"]*)"/)||[])[1],id:(m[0].match(/r:id="([^"]*)"/)||[])[1]}));
+  const rels={};for(const m of rel.matchAll(/<Relationship\b[^>]*>/g)){const id=(m[0].match(/Id="([^"]*)"/)||[])[1],t=(m[0].match(/Target="([^"]*)"/)||[])[1];if(id)rels[id]=t}
+  const cands=sheets.map(s=>rels[s.id]).filter(Boolean).map(t=>t.startsWith("/")?t.slice(1):"xl/"+t.replace(/^\.?\//,""));
+  for(const c of cands){const x=await dec(c);if(!x)continue;const r=sheetRows(x,ss);if(r.length>=2){return r}}
+  if(cands.length){const x=await dec(cands[0]);if(x)return sheetRows(x,ss)}}
+ const x=await dec("xl/worksheets/sheet1.xml");if(!x)throw new Error("No worksheet found in this file.");return sheetRows(x,ss)}
+function sheetRows(x,ss){const rows=[];for(const rm of x.matchAll(/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)){if(!rm[1])continue;const row=[];
+  for(const cm of rm[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)){const at=cm[1],ref=(at.match(/\br="([A-Z]+)\d+"/)||[])[1];if(!ref)continue;const t=(at.match(/\bt="([^"]*)"/)||[])[1],inner=cm[2]||"";let v="";
+   const vm=inner.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);
+   if(t==="s")v=ss[+(vm&&vm[1])]||"";else if(t==="inlineStr")v=xmlText((inner.match(/<is>([\s\S]*?)<\/is>/)||[])[1]||"");else if(t==="str"||t==="e")v=vm?xmlText(vm[1]):"";else if(t==="b")v=vm&&vm[1]==="1"?"TRUE":"FALSE";else if(vm){const n=parseFloat(vm[1]);v=isFinite(n)?n:xmlText(vm[1])}
+   row[colNum(ref)]=v}
+  if(row.some(c=>c!==undefined&&c!==""))rows.push(Array.from(row,c=>c===undefined?"":c))}return rows}
+
+/* ---- PDF text reader (text-based PDFs only; no OCR) ---- */
+const PDF_WS=/[\0\t\n\f\r ]/;
+function pdfSkip(S,st){for(;;){const c=S[st.i];if(c===undefined)return;if(PDF_WS.test(c))st.i++;else if(c==="%"){while(st.i<S.length&&S[st.i]!=="\n"&&S[st.i]!=="\r")st.i++}else return}}
+function pdfParse(S,st){pdfSkip(S,st);const c=S[st.i];if(c===undefined)return null;
+ if(c==="<"&&S[st.i+1]==="<"){st.i+=2;const d=Object.create(null);for(;;){pdfSkip(S,st);if(st.i>=S.length)break;if(S[st.i]===">"&&S[st.i+1]===">"){st.i+=2;break}const k=pdfParse(S,st);if(!k||k.n===undefined){continue}d[k.n]=pdfParse(S,st)}return d}
+ if(c==="["){st.i++;const a=[];for(;;){pdfSkip(S,st);if(st.i>=S.length)break;if(S[st.i]==="]"){st.i++;break}a.push(pdfParse(S,st))}return a}
+ if(c==="("){st.i++;let depth=1,o="";while(st.i<S.length){const ch=S[st.i++];if(ch==="\\"){const n=S[st.i++];if(n==="n")o+="\n";else if(n==="r")o+="\r";else if(n==="t")o+="\t";else if(n==="b")o+="\b";else if(n==="f")o+="\f";else if(/[0-7]/.test(n)){let oc=n;while(oc.length<3&&/[0-7]/.test(S[st.i]||""))oc+=S[st.i++];o+=String.fromCharCode(parseInt(oc,8)&255)}else if(n==="\r"){if(S[st.i]==="\n")st.i++}else if(n!=="\n")o+=n}else if(ch==="("){depth++;o+=ch}else if(ch===")"){if(--depth===0)break;o+=ch}else o+=ch}return{s:o}}
+ if(c==="<"){const e=S.indexOf(">",st.i);const h=S.slice(st.i+1,e<0?S.length:e).replace(/[^0-9A-Fa-f]/g,"");st.i=e<0?S.length:e+1;let o="";const hh=h.length%2?h+"0":h;for(let i=0;i<hh.length;i+=2)o+=String.fromCharCode(parseInt(hh.substr(i,2),16));return{s:o}}
+ if(c==="/"){st.i++;let n="";while(st.i<S.length&&!/[\0\t\n\f\r ()<>\[\]{}\/%]/.test(S[st.i]))n+=S[st.i++];return{n:n.replace(/#([0-9A-Fa-f]{2})/g,(m,h)=>String.fromCharCode(parseInt(h,16)))}}
+ const rx=/[+-]?(?:\d+\.?\d*|\.\d+)|[A-Za-z*'"]+/y;rx.lastIndex=st.i;const m=rx.exec(S);
+ if(!m){st.i++;return{k:c}}st.i=rx.lastIndex;const t=m[0];
+ if(/^[+-]?\d+$/.test(t)&&+t>=0&&!/^[+-]/.test(t)){const r=/\s+(\d+)\s+R(?![A-Za-z])/y;r.lastIndex=st.i;const mm=r.exec(S);if(mm){st.i=r.lastIndex;return{r:+t}}}
+ if(/^[+-]?[\d.]/.test(t))return parseFloat(t);if(t==="true")return true;if(t==="false")return false;if(t==="null")return null;return{k:t}}
+function a85(s){s=s.replace(/^\s*<~/,"").replace(/~>[\s\S]*$/,"").replace(/\s+/g,"");const out=[];let t=[];
+ for(const ch of s){if(ch==="z"&&!t.length){out.push(0,0,0,0);continue}t.push(ch.charCodeAt(0)-33);if(t.length===5){let v=0;for(const x of t)v=v*85+x;out.push((v>>>24)&255,(v>>>16)&255,(v>>>8)&255,v&255);t=[]}}
+ if(t.length>1){const n=t.length;while(t.length<5)t.push(84);let v=0;for(const x of t)v=v*85+x;const b=[(v>>>24)&255,(v>>>16)&255,(v>>>8)&255,v&255];for(let i=0;i<n-1;i++)out.push(b[i])}return Uint8Array.from(out)}
+const mulM=(a,b)=>[a[0]*b[0]+a[1]*b[2],a[0]*b[1]+a[1]*b[3],a[2]*b[0]+a[3]*b[2],a[2]*b[1]+a[3]*b[3],a[4]*b[0]+a[5]*b[2]+b[4],a[4]*b[1]+a[5]*b[3]+b[5]];
+const CP1252={0x80:"€",0x82:"‚",0x83:"ƒ",0x84:"„",0x85:"…",0x86:"†",0x87:"‡",0x88:"ˆ",0x89:"‰",0x8A:"Š",0x8B:"‹",0x8C:"Œ",0x8E:"Ž",0x91:"‘",0x92:"’",0x93:"“",0x94:"”",0x95:"•",0x96:"–",0x97:"—",0x98:"˜",0x99:"™",0x9A:"š",0x9B:"›",0x9C:"œ",0x9E:"ž",0x9F:"Ÿ"};
+const GLYPH={space:" ",hyphen:"-",minus:"-",period:".",comma:",",colon:":",semicolon:";",slash:"/",percent:"%",ampersand:"&",parenleft:"(",parenright:")",bullet:"•",endash:"–",emdash:"—",quotesingle:"'",quotedbl:'"',quoteleft:"‘",quoteright:"’",quotedblleft:"“",quotedblright:"”",plus:"+",equal:"=",question:"?",exclam:"!",at:"@",numbersign:"#",dollar:"$",asterisk:"*",underscore:"_",bracketleft:"[",bracketright:"]",zero:"0",one:"1",two:"2",three:"3",four:"4",five:"5",six:"6",seven:"7",eight:"8",nine:"9",fi:"fi",fl:"fl",ff:"ff",ffi:"ffi",multiply:"×",degree:"°",eacute:"é",egrave:"è",agrave:"à",ccedilla:"ç",ecircumflex:"ê",ocircumflex:"ô",acircumflex:"â",ucircumflex:"û"};
+const glyphChar=n=>n.length===1?n:GLYPH[n]!==undefined?GLYPH[n]:/^uni[0-9A-Fa-f]{4}$/.test(n)?String.fromCharCode(parseInt(n.slice(3),16)):"";
+function parseCMap(t){const map=new Map();let cs=null;const m0=t.match(/begincodespacerange\s*<([0-9A-Fa-f]+)>/);if(m0)cs=m0[1].length/2;
+ const hs=h=>{h=h.replace(/\s/g,"");if(h.length<=2)return String.fromCharCode(parseInt(h||"0",16));let o="";for(let i=0;i+3<h.length;i+=4)o+=String.fromCharCode(parseInt(h.substr(i,4),16));return o};
+ for(const b of t.matchAll(/beginbfchar([\s\S]*?)endbfchar/g))for(const p of b[1].matchAll(/<([0-9A-Fa-f\s]+)>\s*<([0-9A-Fa-f\s]*)>/g))map.set(parseInt(p[1].replace(/\s/g,""),16),hs(p[2]));
+ for(const b of t.matchAll(/beginbfrange([\s\S]*?)endbfrange/g))for(const p of b[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*(?:<([0-9A-Fa-f\s]*)>|\[([^\]]*)\])/g)){const lo=parseInt(p[1],16),hi=parseInt(p[2],16);
+  if(p[3]!==undefined){const base=hs(p[3]);const last=base.charCodeAt(base.length-1);for(let c=lo;c<=hi&&c-lo<65536;c++)map.set(c,base.slice(0,-1)+String.fromCharCode(last+c-lo))}
+  else{const arr=[...p[4].matchAll(/<([0-9A-Fa-f\s]*)>/g)].map(x=>hs(x[1]));for(let c=lo;c<=hi&&c-lo<arr.length;c++)map.set(c,arr[c-lo])}}
+ return{map,cs}}
+class PDFFile{
+ constructor(u8){this.S=latin1(u8);this.pos=new Map();this.cache=new Map();this.objstm=new Map();this.dec=new Map();this.fonts=new Map()}
+ async init(){const S=this.S,rx=/(?:^|[\s>\]])(\d+)\s+(\d+)\s+obj\b/g;let m;while((m=rx.exec(S)))this.pos.set(+m[1],m.index+m[0].length);
+  if(/\/Encrypt\b/.test(S.slice(Math.max(0,S.length-4000))))throw new Error("This PDF is password-protected. Paste the text instead.");
+  for(const [n] of [...this.pos]){const o=this.getObj(n);if(o&&o.val&&o.val.Type&&o.val.Type.n==="ObjStm"){const d=await this.streamData(o);if(!d)continue;const T=latin1(d),first=+o.val.First||0,N=+o.val.N||0;
+    const hdr=T.slice(0,first).trim().split(/\s+/).map(Number);for(let k=0;k<N;k++){const on=hdr[2*k],off=hdr[2*k+1];if(Number.isFinite(on)&&!this.pos.has(on)&&!this.objstm.has(on))this.objstm.set(on,{T,at:first+off})}}}}
+ getObj(n){if(this.cache.has(n))return this.cache.get(n);let r=null;
+  if(this.pos.has(n)){const st={i:this.pos.get(n)};const val=pdfParse(this.S,st);r={val};pdfSkip(this.S,st);
+   if(this.S.startsWith("stream",st.i)){let j=st.i+6;if(this.S[j]==="\r")j++;if(this.S[j]==="\n")j++;let e=this.S.indexOf("endstream",j);if(e<0)e=this.S.length;let end=e;
+    const L=val&&typeof val.Length==="number"?val.Length:null;if(L!==null&&j+L<=e&&this.S.slice(j+L,e).trim()==="")end=j+L;else{while(end>j&&(this.S[end-1]==="\n"||this.S[end-1]==="\r"))end--}r.stream={s:j,e:end}}}
+  else if(this.objstm.has(n)){const x=this.objstm.get(n);r={val:pdfParse(x.T,{i:x.at})}}
+  this.cache.set(n,r);return r}
+ res(v){let g=0;while(v&&v.r!==undefined&&g++<20){const o=this.getObj(v.r);v=o?o.val:null}return v}
+ async streamData(o){if(!o||!o.stream)return null;if(this.dec.has(o))return this.dec.get(o);const raw=toU8(this.S.slice(o.stream.s,o.stream.e));let f=this.res(o.val.Filter);const fl=Array.isArray(f)?f.map(x=>this.res(x)):f?[f]:[];let d=raw;
+  try{for(const x of fl){const nm=x&&x.n;if(nm==="FlateDecode"||nm==="Fl")d=await inflateBytes(d,"deflate");else if(nm==="ASCII85Decode"||nm==="A85")d=a85(latin1(d));else if(nm==="ASCIIHexDecode"||nm==="AHx")d=toU8(latin1(d).replace(/[^0-9A-Fa-f]/g,"").replace(/(..)/g,(m,h)=>String.fromCharCode(parseInt(h,16))));else{d=null;break}}}catch(e){d=null}
+  this.dec.set(o,d);return d}
+ font(fv){const key=fv&&fv.r!==undefined?fv.r:null;if(key!==null&&this.fonts.has(key))return this.fonts.get(key);const fd=this.res(fv)||{};const sub=fd.Subtype&&fd.Subtype.n;const f={two:sub==="Type0",map:null,cs:null,dw:1000,W:null,fc:0,widths:null,mw:0,enc:null,pending:null};f.fd=fd;
+  if(fd.ToUnicode){const o=fd.ToUnicode.r!==undefined?this.getObj(fd.ToUnicode.r):null;f.pending=o}
+  if(f.two){const df=this.res((this.res(fd.DescendantFonts)||[])[0])||{};f.dw=typeof df.DW==="number"?df.DW:1000;const W=this.res(df.W);if(Array.isArray(W)){f.W=new Map();for(let i=0;i<W.length;){const a=W[i],b=this.res(W[i+1]);if(Array.isArray(b)){b.forEach((w,k)=>f.W.set(a+k,w));i+=2}else{for(let c=a;c<=b&&c-a<70000;c++)f.W.set(c,W[i+2]);i+=3}}}}
+  else{f.fc=+fd.FirstChar||0;const w=this.res(fd.Widths);if(Array.isArray(w))f.widths=w.map(x=>this.res(x));const ds=this.res(fd.FontDescriptor);f.mw=ds&&ds.MissingWidth||0;
+   let enc=this.res(fd.Encoding);const tbl=new Array(256);for(let i=0;i<256;i++)tbl[i]=i>=32&&i<127?String.fromCharCode(i):CP1252[i]||(i>=160?String.fromCharCode(i):"");tbl[127]="•";
+   if(enc&&enc.Differences){let c=0;for(const d of this.res(enc.Differences)){const v=this.res(d);if(typeof v==="number")c=v;else if(v&&v.n!==undefined){if(c<256)tbl[c]=glyphChar(v.n);c++}}}f.enc=tbl}
+  if(key!==null)this.fonts.set(key,f);return f}
+ async prepFont(f){if(f.pending){const d=await this.streamData(f.pending);if(d){const c=parseCMap(latin1(d));f.map=c.map;f.cs=c.cs}f.pending=null}}
+ decode(f,s){const out=[];if(f.two){const step=f.cs===1?1:2;for(let i=0;i+step<=s.length;i+=step){const code=step===2?(s.charCodeAt(i)<<8)|s.charCodeAt(i+1):s.charCodeAt(i);const t=f.map&&f.map.has(code)?f.map.get(code):f.map?"":(code>=32&&code<127?String.fromCharCode(code):"");out.push({t,w:f.W&&f.W.has(code)?f.W.get(code):f.dw,sp:false})}}
+  else for(let i=0;i<s.length;i++){const code=s.charCodeAt(i);const t=f.map&&f.map.has(code)?f.map.get(code):f.enc[code]||"";let w=f.widths&&code-f.fc>=0&&code-f.fc<f.widths.length&&typeof f.widths[code-f.fc]==="number"?f.widths[code-f.fc]:(f.mw||(code===32?278:500));out.push({t,w,sp:code===32})}return out}
+ pages(){const S=this.S;let root=null;const rm=[...S.matchAll(/\/Root\s+(\d+)\s+\d+\s+R/g)];if(rm.length)root=this.res({r:+rm[rm.length-1][1]});const out=[];
+  const walk=(nv,inh,depth)=>{const n=this.res(nv);if(!n||depth>40)return;const res=n.Resources!==undefined?n.Resources:inh;if(n.Kids)(this.res(n.Kids)||[]).forEach(k=>walk(k,res,depth+1));else out.push({page:n,res})};
+  if(root&&root.Pages)walk(root.Pages,null,0);
+  if(!out.length){for(const [n] of [...this.pos])if(true){const o=this.getObj(n);if(o&&o.val&&o.val.Type&&o.val.Type.n==="Page")out.push({page:o.val,res:o.val.Resources})}}return out}
+ async pageText(pg){const lines=[];let cur="",last=null;
+  const emit=(t,xs,xe,y,eff)=>{if(!t)return;if(last){const dy=Math.abs(y-last.y);if(dy>0.5*Math.max(eff,last.eff)){lines.push(cur);cur=""}else{const gap=xs-last.xe;if((gap>0.18*eff||gap<-2*eff)&&!/\s$/.test(cur)&&!/^\s/.test(t))cur+=" "}}cur+=t;last={xe,y,eff}};
+  const run=async(data,res,ctm0,depth)=>{const S=data,st={i:0};let ctm=ctm0.slice(),stack=[],ops=[],tm=[1,0,0,1,0,0],tlm=tm,font=null,fs=0,tc=0,tw=0,th=1,tl=0;
+   const fonts=this.res(res&&this.res(res).Font)||{};const xobj=this.res(res&&this.res(res).XObject)||{};
+   const td=(tx,ty)=>{tlm=mulM([1,0,0,1,tx,ty],tlm);tm=tlm.slice()};
+   const show=async s=>{if(!font)return;await this.prepFont(font);const gl=this.decode(font,s);let t="",adv=0;for(const g of gl){t+=g.t;adv+=(g.w/1000*fs+tc+(g.sp?tw:0))*th}
+    const a=mulM(tm,ctm),eff=Math.abs(fs)*Math.hypot(a[2],a[3])||1;tm=mulM([1,0,0,1,adv,0],tm);const b=mulM(tm,ctm);emit(t,a[4],b[4],a[5],eff)};
+   let guard=0;for(;;){pdfSkip(S,st);if(st.i>=S.length||guard++>2e6)break;const v=pdfParse(S,st);
+    if(v&&v.k!==undefined){const op=v.k,A=ops;ops=[];
+     switch(op){case"q":stack.push(ctm.slice());break;case"Q":if(stack.length)ctm=stack.pop();break;case"cm":if(A.length>=6)ctm=mulM(A.slice(-6),ctm);break;
+      case"BT":tm=[1,0,0,1,0,0];tlm=tm;break;case"Tf":font=fonts[A[0]&&A[0].n]!==undefined?this.font(fonts[A[0].n]):null;fs=+A[1]||0;break;
+      case"Tc":tc=+A[0]||0;break;case"Tw":tw=+A[0]||0;break;case"Tz":th=(+A[0]||100)/100;break;case"TL":tl=+A[0]||0;break;
+      case"Td":td(+A[0]||0,+A[1]||0);break;case"TD":tl=-(+A[1]||0);td(+A[0]||0,+A[1]||0);break;case"Tm":if(A.length>=6){tm=A.slice(-6).map(Number);tlm=tm.slice()}break;case"T*":td(0,-tl);break;
+      case"Tj":if(A[0]&&A[0].s!==undefined)await show(A[0].s);break;
+      case"'":td(0,-tl);if(A[0]&&A[0].s!==undefined)await show(A[0].s);break;
+      case'"':tw=+A[0]||0;tc=+A[1]||0;td(0,-tl);if(A[2]&&A[2].s!==undefined)await show(A[2].s);break;
+      case"TJ":if(Array.isArray(A[0]))for(const e of A[0]){if(e&&e.s!==undefined)await show(e.s);else if(typeof e==="number")tm=mulM([1,0,0,1,-e/1000*fs*th,0],tm)}break;
+      case"Do":{const xo=A[0]&&xobj[A[0].n]!==undefined?this.res(xobj[A[0].n]):null;const ref=A[0]&&xobj[A[0].n];if(depth<4&&xo&&xo.Subtype&&xo.Subtype.n==="Form"&&ref&&ref.r!==undefined){const o=this.getObj(ref.r),d=await this.streamData(o);if(d){const mat=Array.isArray(xo.Matrix)?xo.Matrix.map(Number):[1,0,0,1,0,0];await run(latin1(d),xo.Resources!==undefined?xo.Resources:res,mulM(mat,ctm),depth+1)}}break}
+      case"BI":{const id=S.indexOf("ID",st.i);if(id<0){st.i=S.length;break}const e=S.slice(id+2).search(/[\s]EI[\s]/);st.i=e<0?S.length:id+2+e+3;break}}}
+    else ops.push(v)}};
+  const c=this.res(pg.page.Contents);const refs=Array.isArray(c)?(pg.page.Contents.r!==undefined?c:c):[pg.page.Contents];let data="";
+  for(const r of refs){const o=r&&r.r!==undefined?this.getObj(r.r):(this.res(r)&&this.res(r).stream?this.res(r):null);const d=await this.streamData(o);if(d)data+=latin1(d)+"\n"}
+  await run(data,pg.res,[1,0,0,1,0,0],0);if(cur)lines.push(cur);return lines}
+}
+async function pdfToText(u8){const f=new PDFFile(u8);await f.init();const pgs=f.pages();if(!pgs.length)throw new Error("No pages found in this PDF.");const per=[];
+ for(const pg of pgs){try{per.push(await f.pageText(pg))}catch(e){per.push([])}}
+ const norm=l=>l.replace(/\d+/g,"#").trim(),cnt=new Map(),edge=(p,i)=>i<2||i>=p.length-2;per.forEach(p=>new Set(p.filter((l,i)=>edge(p,i)).map(norm)).forEach(k=>cnt.set(k,(cnt.get(k)||0)+1)));
+ const drop=(l,i,p)=>/^(page\s*)?\d+(\s*(of|\/)\s*\d+)?$/i.test(l.trim())||(pgs.length>=4&&edge(p,i)&&cnt.get(norm(l))>=3&&l.length<100);
+ const text=per.map(p=>p.filter((l,i)=>l.trim()&&!drop(l,i,p)).join("\n")).join("\n\f\n");
+ if((text.match(/[A-Za-z]/g)||[]).length<40)throw new Error("No readable text found. This may be a scanned PDF or use an unsupported font encoding. Paste the text instead, or upload an Excel/CSV list.");return text}
+
+/* ---- Activity detection, classification, quantities, benchmark matching (rule-based) ---- */
+const VERB_SRC="train|conduct|construct|install|establish|develop|build|procure|purchase|supply|provide|support|strengthen|rehabilitate|restore|plant|implement|organi[sz]e|facilitate|hire|recruit|engage|design|prepare|map|assess|survey|review|analy[sz]e|distribute|deliver|equip|set up|create|launch|run|hold|undertake|carry out|deploy|pilot|scale up|promote|introduce|upgrade|expand|finance|fund|sensiti[sz]e|mobili[sz]e|monitor|evaluate|audit|drill|dig|excavate|renovate|repair|maintain|operate|coordinate|produce|publish|disseminate|convene|enrol|register|certify|protect|conserve|digiti[sz]e|replace|retrofit|survey|document|update|revise|formulate|appoint|contract|commission|rollout|roll out|integrate|mainstream|capacitate|reforest|afforest|rehabilitation";
+const VERB_RX=new RegExp("^(?:"+VERB_SRC+")\\b","i"),NOMINAL_RX=/^(training|construction|establishment|development|rehabilitation|installation|procurement|restoration|provision|delivery|implementation|strengthening|support|mapping|conducting|capacity|design|assessment|study|survey|awareness|evaluation|monitoring|project management|programme management|purchase|supply|distribution|recruitment)\b/i;
+const MODAL_RX=/^(?:the\s+(?:project|programme|program|intervention)\s+|we\s+|it\s+)?(?:will|shall|to|aims?\s+to|is\s+to|seeks?\s+to)\s+(?:also\s+|further\s+|then\s+|additionally\s+|first\s+|finally\s+|directly\s+)?/i;
+const BULLET_RX=/^\s*(?:[•▪◦●■□○·*\u2022]|[-–—]\s|\(?[a-z]\)|\(?[ivx]{1,4}\)|\d{1,2}(?:\.\d+)*[.)]?\s|(?:activity|action|task|intervention|deliverable|step)\s*[\d.]+[a-z]?\s*[:.\-–)]?\s)\s*/i;
+const LABEL_HEAD_RX=/^\s*(output|component|outcome|objective|goal|impact|pillar|priority|result|assumptions?|risks?|indicators?)\s*[\d.]*[a-z]?\s*[:.\-–]\s*(.*)$/i;
+const LIST_LABEL_RX=/^\s*(activities|key activities|proposed activities|main activities|interventions|actions)\s*[:\-–]\s*(.+)$/i;
+const H_ACT=/\b(activit|output|intervention|action|component|deliverable|work\s?plan|proposed|budget|bill of quantities|boq|scope|implementation|project (?:description|components?))/i;
+const H_SKIP=/\b(outcome|impact|goal|objective|assumption|risk|background|context|rationale|introduction|summary|problem|justification|sustainab|framework|theory of change|results? chain|beneficiar|stakeholders?|partners?|appendix|annex|references|contact|executive|situation|baseline|lessons|indicators?)/i;
+const GROUP_KW={
+G1:[[/\b(consultan\w*|expert\w*|technical (?:assistance|advis\w+|support|specialist)|advis[eo]r\w*|specialist\w*|backstopping|short-term technical)\b/gi,3],[/\b(?:hire|recruit|engage)\b/gi,1]],
+G2:[[/\b(?:farmer field schools?|ffs)\b/gi,6],[/\b(train\w*|capacity[- ]build\w*|capacity development|curricul\w+|coaching|mentor\w*|skills? (?:development|building)|study tours?|exchange visits?)\b/gi,3],[/\b(?:workshops?|courses?|seminars?)\b/gi,1]],
+G3:[[/\b(consultations?|stakeholder (?:meetings?|engagement|dialogue)|meetings?|awareness|campaigns?|sensiti[sz]\w*|dissemination|outreach|dialogues?|forums?|communications?|radio|mobili[sz]\w*|knowledge (?:sharing|exchange|management)|conferences?|coordination platform)\b/gi,3],[/\bworkshops?\b/gi,2]],
+G4:[[/\b(stud(?:y|ies)|assessments?|surveys?|mapping|baselines?|designs?|plans?|planning|strateg\w+|guidelines?|feasibility|vulnerability|diagnostic|analys[ie]s|research|model+ing|inventor\w+|policy|policies|framework|hydrogeolog\w+|screening|appraisal|manuals?|protocols?)\b/gi,3]],
+G5:[[/\b(early warning|weather stations?|hydromet\w*|meteorolog\w*|climate information|forecast\w*|monitoring (?:system|tool|stations?|network)|data (?:system|management)|observation|gauging|remote sensing|mrv|database|dashboard|information system|groundwater monitoring)\b/gi,5]],
+G6:[[/\b(construct\w*|wells?|boreholes?|hafirs?|dams?|irrigation|canals?|water (?:points?|yards?|supply|harvesting|tanks?|infrastructure)|pipelines?|reservoirs?|flood (?:protection|control|defen[cs]e)|embankments?|drainage|roads?|bridges?|solar[- ]powered|solar pumps?|infrastructure|storage (?:facilit\w+|tanks?)|sanitation|latrines?|ponds?|weirs?)\b/gi,3],[/\b(?:install\w*|drill\w*)\b/gi,2]],
+G7:[[/\b(reforest\w*|afforest\w*|tree[- ]planting|plant(?:ing)? trees?|restor\w*|rangelands?|soil (?:and water )?conservation|watersheds?|agroforestry|mangroves?|erosion|terrac\w+|gull(?:y|ies)|natural regeneration|dunes?|wetlands?|forests?|degraded (?:land|rangeland)|sustainable land)\b/gi,3]],
+G8:[[/\b(seeds?|livestock|farmers?|crops?|agricultur\w+|value chains?|livelihoods?|extension|fodder|bee-?keeping|fish\w*|aquaculture|savings (?:and loan )?groups?|vsla|micro-?enterprise\w*|income[- ]generating|drought[- ]tolerant|post-?harvest|cooperatives?|pastoral\w*|multiplication|nurser(?:y|ies))\b/gi,2]],
+G9:[[/\b(?:project|programme|program) (?:management|coordination|execution|unit)\b/gi,4],[/\b(pmu|monitoring and evaluation|m&e|mel|audits?|evaluations?|supervision|staff|salar\w+|offices?|administrative|overheads?|management fees?|reporting|safeguards?|per diems?)\b/gi,3]],
+G10:[[/\b(purchase|procure\w*|equipment|supplies|tools|machinery|laptops?|computers?|ict|software|motorcycles?|kits?|generators?|pumps?|hardware|vehicles?)\b/gi,3]],
+G11:[[/\b(grants?|credit|loans?|micro-?finance|insurance|revolving fund|guarantee\w*|financing (?:mechanism|facility)|matching (?:grant|fund)|seed capital|start-?up (?:grants?|capital)|funds?)\b/gi,3]]};
+const LEAD_BOOST=[[/^(train|coach|mentor)/i,"G2",3],[/^(construct|build|drill|install|excavate|dig|renovate)/i,"G6",2],[/^(plant|reforest|afforest|restore)/i,"G7",2],[/^(purchase|procure|supply)/i,"G10",1],[/^(hire|recruit|engage)/i,"G1",1],[/^(develop|design|prepare|map|assess|survey|review|analy)/i,"G4",2],[/^(organi[sz]e|hold|convene|conduct|facilitate)/i,"G3",1]];
+function classify(text){const t=text.toLowerCase(),sc={};for(const [g,pats] of Object.entries(GROUP_KW)){let s=0;for(const [rx,w] of pats){const m=new Set((t.match(rx)||[]).map(x=>x.toLowerCase()));s+=w*Math.min(3,m.size)}if(s)sc[g]=s}
+ const lead=t.replace(MODAL_RX,"").trim();for(const [rx,g,w] of LEAD_BOOST)if(rx.test(lead)&&sc[g]!==undefined)sc[g]+=w;
+ let best=null,bs=0;for(const [g,s] of Object.entries(sc))if(s>bs){best=g;bs=s}return best}
+const DEFAULT_FAM={G1:"U11",G2:"U04",G3:"U04",G4:"U11",G5:"U09",G6:"U07",G7:"U06",G8:"U05",G9:"U11",G10:"U09",G11:"U11"};
+const ALT_FAM={G6:{U09:"U07"},G7:{U09:"U07",U05:"U07"}};
+const FAM_RULES=[[/^(?:(?:person|man|expert|consultant)[- ]?days?|pd|days?)$/,"U01"],[/^(?:(?:person|man)[- ]?months?|pm|months?)$/,"U02"],[/^(?:years?|annual|yearly|annum)$/,"U03"],
+[/^(?:events?|workshops?|trainings?|sessions?|meetings?|seminars?|consultations?|campaigns?|courses?|forums?|dialogues?|conferences?|exercises?)$/,"U04"],
+[/^(?:households?|hhs?|farmers?|people|persons?|beneficiar\w+|participants?|women|men|youth|pastoralists?|students?|members?|smallholders?|trainees?|teachers?|workers?|producers?|children|girls|boys|individuals?|capita)$/,"U05"],
+[/^(?:hectares?|ha|acres?)$/,"U06"],[/^(?:sites?|villages?|communit(?:y|ies)|districts?|counties|county|municipalit\w+|schools?|regions?|watersheds?|catchments?|states?|provinces?|wards?|locations?|clinics?|facilit(?:y|ies)|plots?|groups?|associations?|cooperatives?)$/,"U07"],
+[/^(?:trips?|missions?|travels?|flights?)$/,"U08"],[/^(?:items?|units?|equipment|sets?|pieces?|stations?|kits?|pumps?|wells?|boreholes?|hafirs?|tanks?|vehicles?|motorcycles?|laptops?|computers?|sensors?|devices?|machines?|generators?|yards?|points?|ponds?|dams?|systems?|tools?|nurser(?:y|ies))$/,"U09"],
+[/^(?:km|kilomet\w+|m|metres?|meters?|m2|m3|m²|m³|litres?|liters?|tonnes?|tons?)$/,"U10"],[/^(?:lump|lumpsum|ls)$/,"U11"]];
+function famOfWord(w){w=String(w).toLowerCase().replace(/[^a-z0-9²³\-]/g,"");for(const [rx,f] of FAM_RULES)if(rx.test(w))return f;return null}
+function famOfLabel(l){l=String(l||"").toLowerCase().trim();if(!l)return null;if(/person.*day|man.*day|expert.*day/.test(l))return"U01";if(/person.*month|man.*month/.test(l))return"U02";if(/lump/.test(l))return"U11";
+ const w=l.replace(/^per\s+/,"").split(/[\s\/(]+/).filter(Boolean);for(let i=w.length-1;i>=0;i--){const f=famOfWord(w[i]);if(f)return f}return null}
+const STOP=new Set("in of for on to at by with and per across from through into within using that which between among under over as or while during".split(" "));
+const MULT={k:1e3,thousand:1e3,million:1e6,mn:1e6,m:1e6};
+function findStated(text){const rx1=/(?:USD|US\$|US \$|\$)\s*([\d]{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(million|mn|thousand|k|m)?\b/i,rx2=/\b([\d]{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(million|mn|thousand|k|m)?\s*(?:USD|US\$|US dollars|dollars)\b/i;
+ const m=text.match(rx1)||text.match(rx2);if(!m)return null;const v=parseFloat(m[1].replace(/,/g,""))*(m[2]?MULT[m[2].toLowerCase()]:1);return v>0?{value:v,span:m[0]}:null}
+function findQuantities(text){let t=text.replace(/(?:USD|US\$|US \$|\$)\s*[\d,.]+\s*(?:million|mn|thousand|k|m)?/gi," ").replace(/[\d,.]+\s*(?:million|mn|thousand)?\s*(?:USD|US\$|dollars)/gi," ").replace(/\d+(?:\.\d+)?\s*(?:%|percent|per cent)/gi," ");
+ const out=[];const rx=/(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?:\s*(million|thousand|k)\b)?/gi;let m;
+ while((m=rx.exec(t))){let n=parseFloat(m[1].replace(/,/g,""));if(m[2])n*=MULT[m[2].toLowerCase()];
+  if(/^\d{4}$/.test(m[1])&&n>=1990&&n<=2100)continue;if(/\d[-–]$/.test(t.slice(Math.max(0,m.index-2),m.index)))continue;if(t[m.index-1]==="."||/\w/.test(t[m.index-1]||"")&&!/[\s(\[]/.test(t[m.index-1]))continue;
+  const after=t.slice(m.index+m[0].length),words=[];for(const w0 of after.trim().split(/\s+/)){if(!w0)break;const w=w0.replace(/[.,;:)]+$/,"");const bare=w.toLowerCase();if(STOP.has(bare))break;words.push(w);if(/[.,;:)]$/.test(w0)||words.length>=4)break}
+  for(let i=words.length-1;i>=0;i--){const f=famOfWord(words[i]);if(f){out.push({qty:n,fam:f,label:words[i].toLowerCase()});break}}}
+ return out}
+function matchBench(group,fam,LIB){if(!group)return null;const get=u=>LIB.find(b=>b.id===group+"|"+u);
+ if(fam){let c=get(fam);if(c)return{cell:c,how:"exact"};const a=(ALT_FAM[group]||{})[fam];if(a&&(c=get(a)))return{cell:c,how:"alt"}}
+ const c=get(DEFAULT_FAM[group]);return c?{cell:c,how:"default"}:null}
+const CAPEX_G=new Set(["G6","G7","G10"]);
+function tableTail(text){const nums=[...text.matchAll(/(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?![\w.%])/g)].map(m=>({v:parseFloat(m[1].replace(/,/g,"")),i:m.index,e:m.index+m[0].length}));
+ if(nums.length<3)return null;const last=nums.length-1,tail=nums.slice(-4),k=last;
+ for(let a=0;a<tail.length;a++)for(let b=a+1;b<tail.length;b++){const qa=tail[a],ub=tail[b],t=nums[k];if(ub===t||qa===t)continue;if(qa.v>0&&ub.v>0&&Math.abs(qa.v*ub.v-t.v)<=0.015*t.v&&t.v>=100){
+   const after=text.slice(qa.e,ub.i).trim().split(/\s+/)[0]||"";return{qty:qa.v,unitCost:ub.v,total:t.v,label:/^[A-Za-z]/.test(after)?after.replace(/[^\w\-]/g,"").toLowerCase():"",name:text.slice(0,qa.i).replace(/[\s,;:\-–]+$/,"")}}}
+ if(/lump\s*sum/i.test(text)&&nums[k].v>0)return{qty:1,unitCost:nums[k].v,total:nums[k].v,label:"lump sum",name:text.slice(0,text.search(/\d[\d,.]*\s*lump/i)>0?text.search(/\d[\d,.]*\s*lump/i):text.length).replace(/[\s,;:\-–]+$/,"")};return null}
+function draftRow(c,LIB,forceGroup){if(!c.unitCost&&!c.total&&!c.qty&&c.from!=="sheet"){const tt=tableTail(c.text);if(tt&&tt.name.length>=6){c={...c,text:tt.name,qty:tt.qty,unitCost:tt.unitCost,unitLabel:tt.label}}}
+ const text=c.text,group=forceGroup!==undefined?forceGroup:(c.group||classify(text)),d={text,group,qty:1,unit:0,unitLabel:"",src:"none",bm:"",lo:null,hi:null,conf:"",inc:true,adjust:true,needsQty:false,flags:[],type:c.type||(CAPEX_G.has(group)?"CAPEX":"OPEX"),from:c.from||"text"};
+ if(!group)d.flags.push("Activity type unclear: pick one to get a benchmark");
+ let q=null;const pq=c.qty>0?{qty:c.qty,fam:famOfLabel(c.unitLabel),label:c.unitLabel}:null;
+ const stated=c.unitCost>0?{unit:c.unitCost}:c.total>0?{total:c.total}:(c.from==="sheet"?null:findStated(text)&&{total:findStated(text).value});
+ if(stated){d.src="stated";d.adjust=false;if(stated.unit){d.unit=stated.unit;d.qty=pq?pq.qty:1;if(!pq)d.flags.push("Quantity not stated: assumed 1")}else{if(pq&&pq.qty>0){d.qty=pq.qty;d.unit=stated.total/pq.qty}else{d.qty=1;d.unit=stated.total}}
+  d.unitLabel=pq&&pq.label?pq.label:"lump sum";d.flags.push("Cost stated in the document: not price-adjusted");return d}
+ const qs=pq?[pq]:findQuantities(text);let pick=null,m=null;
+ for(const x of qs){const mm=matchBench(group,x.fam,LIB);if(mm&&(mm.how==="exact"||mm.how==="alt")&&mm.cell.c!=="Low"){pick=x;m=mm;break}}
+ if(!pick)for(const x of qs){const mm=matchBench(group,x.fam,LIB);if(mm&&(mm.how==="exact"||mm.how==="alt")){pick=x;m=mm;break}}
+ if(!m)m=matchBench(group,null,LIB);
+ if(m){const b=m.cell;d.bm=b.id;d.lo=b.lo;d.hi=b.hi;d.conf=b.c;d.unit=b.med;d.unitLabel=b.u;
+  if(pick&&(m.how==="exact"||m.how==="alt")){d.qty=pick.qty;d.flags.push("Quantity from the text: "+pick.qty.toLocaleString("en-US")+" "+pick.label+(m.how==="alt"?" (counted as sites)":""))}
+  else{d.qty=1;if(b.u==="Lump sum")d.flags.push("No quantity stated: a typical lump sum is used");else{d.needsQty=true;d.inc=false;d.flags.push("Quantity needed: how many "+b.u.toLowerCase()+"?");if(pick||qs.length)d.flags.push("The text gives "+qs.map(x=>x.qty.toLocaleString("en-US")+" "+x.label).slice(0,2).join(", ")+", which does not match the benchmark unit")}}
+  d.src=b.c==="Low"?"indicative":"benchmark";if(b.c==="Low"){d.inc=false;d.flags.push("Indicative benchmark only ("+b.n+" observations, "+b.p+" project"+(b.p===1?"":"s")+"): tick to include")}
+  d.flags.push("Benchmark: median "+Math.round(b.med).toLocaleString("en-US")+" per "+b.u.toLowerCase()+" ("+b.conf+", n="+b.n+")")}
+ else{d.src="none";if(qs[0]){d.qty=qs[0].qty;d.unitLabel=qs[0].label}d.flags.push("No benchmark available: enter a unit cost")}
+ return d}
+/* ---- text -> candidate activities ---- */
+function splitClauses(s){const parts=[];for(const sen of s.split(/(?<=[.;])\s+(?=[A-Z(])/))for(const p of sen.split(new RegExp("\\s*,?\\s+and\\s+(?=(?:"+VERB_SRC+")\\b)","i")))parts.push(p);
+ const out=[];for(const p of parts){const w=p.trim().split(/\s+/).length;if(out.length&&w<3)out[out.length-1]+=" and "+p;else if(out.length&&out[out.length-1].trim().split(/\s+/).length<2)out[out.length-1]+=" and "+p;else out.push(p)}return out}
+const verbLed=s=>{const x=s.replace(MODAL_RX,"").trim();return VERB_RX.test(x)||NOMINAL_RX.test(x)};
+function clean(s){return s.replace(/\s+/g," ").replace(/^[\s•▪◦●■□○·*\-–—]+/,"").replace(/[\s;,]+$/,"").trim()}
+function activitiesFromText(text){const lines=String(text).split(/\r?\n/);let mode="unknown",cur=null;const items=[];
+ const flush=()=>{if(cur){items.push(cur);cur=null}};
+ const headMode=t=>H_ACT.test(t)?"activity":H_SKIP.test(t)?"skip":null;
+ const nextLine=i=>{for(let j=i+1;j<lines.length;j++){const x=lines[j].trim();if(x&&x!=="\f")return x}return""};
+ for(let li=0;li<lines.length;li++){const raw=lines[li],t=raw.trim();if(!t||t==="\f"){flush();continue}
+  const ll=t.match(LIST_LABEL_RX);if(ll){flush();mode="activity";for(const p of ll[2].split(/\s*[;•]\s*/))if(p.trim())items.push({text:p,mode:"activity",bullet:true});continue}
+  const lh=t.match(LABEL_HEAD_RX);if(lh){flush();const k=lh[1].toLowerCase();mode=/^(output|component|result|pillar|priority)$/.test(k)?"activity":"skip";if(mode==="activity"&&lh[2]&&verbLed(lh[2]))items.push({text:lh[2],mode,bullet:true});continue}
+  const bm=t.match(BULLET_RX);const rest=bm?t.slice(bm[0].length):t;
+  const numHead=bm&&/^\d{1,2}(?:\.\d+)*[.)]?\s/.test(t)&&!verbLed(rest)&&rest.split(/\s+/).length<=10&&headMode(rest);
+  const plainHead=!bm&&t.length<=90&&!/[.;,!?]$/.test(t)&&t.split(/\s+/).length<=12&&((!verbLed(t)&&(headMode(t)||(/^[A-Z0-9\s&\/:\-–()]+$/.test(t)&&/[A-Z]{3}/.test(t))))||(t.split(/\s+/).length<=6&&BULLET_RX.test(nextLine(li))));
+  if(numHead||plainHead){flush();const hm=headMode(numHead?rest:t);if(hm)mode=hm;continue}
+  if(bm){flush();cur={text:rest,mode,bullet:true,explicit:/^(activity|action|task|intervention|deliverable|step)/i.test(t)};continue}
+  if(cur&&(/^[a-z0-9(,;&\-–]/.test(t)||/(?:\b(?:and|or|of|in|for|to|with|the|a|an|on|at|by)|[,;&\-–])$/i.test(cur.text))){cur.text+=" "+t;continue}
+  flush();cur={text:t,mode,bullet:false}}
+ flush();
+ const out=[],seen=new Set();
+ for(const it of items){const txt=clean(it.text);if(txt.length<8||!/[A-Za-z]{3}/.test(txt))continue;let cands=[];
+  if(it.bullet){if(it.explicit||it.mode==="activity"&&txt.split(/\s+/).length>=2||it.mode!=="skip"&&verbLed(txt))cands=splitClauses(txt)}
+  else if(it.mode!=="skip"){for(const cl of splitClauses(txt)){const m=cl.match(new RegExp("\\b(?:will|shall|to)\\s+(?:also\\s+|further\\s+|then\\s+|additionally\\s+|first\\s+|finally\\s+|directly\\s+)?((?:"+VERB_SRC+")\\b.*)$","i"));const c=m?m[1]:(verbLed(cl)?cl:null);if(c)cands.push(c)}}
+  for(let c of cands){c=clean(c).slice(0,260);const k=c.toLowerCase();if(c.length<8||seen.has(k))continue;seen.add(k);out.push({text:c})}}
+ return out.slice(0,200)}
+/* ---- spreadsheet rows -> candidates ---- */
+const toNum=(v,eu)=>{if(typeof v==="number")return isFinite(v)?v:NaN;let s=String(v==null?"":v).trim().replace(/[^\d.,\-]/g,"");if(!/\d/.test(s))return NaN;
+ if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)&&(eu||/,/.test(s)||(s.match(/\./g)||[]).length>1))s=s.replace(/\./g,"").replace(",",".");
+ else if(/^\d{1,3}\.\d{3}$/.test(s)&&eu)s=s.replace(".","");
+ else if(/^\d+,\d{1,2}$/.test(s)&&(eu||!/\./.test(s)))s=s.replace(",",".");else s=s.replace(/,/g,"");
+ const x=parseFloat(s);return isFinite(x)?x:NaN};
+const COLPATS=[["unitCost",/unit\s*(cost|price|rate)|cost\s*(per|\/)\s*unit|rate|price|per unit/i],["qty",/^(qty|quantity|no\.?|nos\.?|number|count)$|quantit/i],["unit",/^(unit|uom|unit of measure\w*|measure)$/i],["total",/total|budget|amount|cost|usd|us\$|\$/i],["name",/activit|description|item|intervention|output|action|task|component|deliverable|^name$|detail/i],["country",/country|location|region|area/i],["type",/^(type|capex\/?opex|cost type)$/i]];
+function tableToCandidates(rows,opt){const eu=!!(opt&&opt.eu||rows.eu);if(!rows.length)return{cands:[],note:"The sheet is empty."};let hi=0,best=-1;
+ rows.slice(0,15).forEach((r,i)=>{const sc=r.filter(c=>typeof c==="string"&&COLPATS.some(([,rx])=>rx.test(c.trim()))).length;if(sc>best){best=sc;hi=i}});
+ const hasHeader=best>=2||(best>=1&&rows[hi].every(c=>typeof c!=="number"));const head=hasHeader?rows[hi].map(c=>String(c||"")):[];const cols={},used=new Set();
+ if(hasHeader)for(const [k,rx] of COLPATS){const i=head.findIndex((h,j)=>!used.has(j)&&rx.test(h.trim()));if(i>=0){cols[k]=i;used.add(i)}}
+ if(cols.name===undefined){let bi=-1,bl=-1;const body=rows.slice(hasHeader?hi+1:0,40);const w=rows[0].length;for(let j=0;j<w;j++){if(used.has(j))continue;const l=body.reduce((a,r)=>a+(typeof r[j]==="string"?r[j].length:0),0);if(l>bl){bl=l;bi=j}}if(bi>=0)cols.name=bi}
+ const cands=[];const skipRx=/^\s*(sub-?total|grand total|total|totals?:?)\b/i;
+ for(const r of rows.slice(hasHeader?hi+1:0)){const name=String(r[cols.name]==null?"":r[cols.name]).trim();if(!name||isFinite(Number(name))||skipRx.test(name))continue;
+  const c={text:clean(name).slice(0,260),from:"sheet"};if(/^\s*(output|outcome|component|objective|goal|impact|pillar)\b/i.test(name)||/:\s*$/.test(name))continue;const q=toNum(r[cols.qty],eu);if(q>0)c.qty=q;if(cols.unit!==undefined&&r[cols.unit])c.unitLabel=String(r[cols.unit]);
+  const uc=toNum(r[cols.unitCost],eu),tt=toNum(r[cols.total],eu);if(uc>0)c.unitCost=uc;else if(tt>0)c.total=tt;
+  if(cols.country!==undefined&&r[cols.country])c.country=String(r[cols.country]).trim();if(cols.type!==undefined&&/^(capex|opex)$/i.test(String(r[cols.type]).trim()))c.type=String(r[cols.type]).trim().toUpperCase();cands.push(c)}
+ const found=Object.entries(cols).map(([k,i])=>k+" = column "+(i+1)+(hasHeader?" ("+head[i].trim()+")":"")).join("; ");
+ return{cands:cands.slice(0,300),note:(hasHeader?"Header row "+(hi+1)+". ":"No header row found. ")+"Columns used: "+found+"."}}
+async function readSource(name,u8){const ext=(name.split(".").pop()||"").toLowerCase();
+ if(ext==="pdf"){const text=await pdfToText(u8);return{kind:"text",text}}
+ if(ext==="xlsx"||ext==="xlsm"){return{kind:"table",rows:await xlsxRows(u8)}}
+ if(ext==="xls")throw new Error("Old .xls files are not supported. Save the sheet as .xlsx or .csv.");
+ if(ext==="csv"||ext==="tsv"||ext==="txt"){const t=new TextDecoder("utf-8").decode(u8);if(ext==="txt")return{kind:"text",text:t};const rows=csvParse(t);rows.eu=((t.split(/\r?\n/)[0]||"").match(/;/g)||[]).length>((t.split(/\r?\n/)[0]||"").match(/,/g)||[]).length;return{kind:"table",rows}}
+ if(ext==="docx")throw new Error("Word files are not supported yet. Save as PDF, or paste the text.");
+ throw new Error("Unsupported file type ."+ext+". Use PDF, Excel (.xlsx) or CSV.")}
+</script>
+<script id="pdf">
+function buildPdf(P,rows,R,GEO,meta){
+const W=595.28,HT=841.89,M=40,CW=W-2*M,BOT=HT-M-24;
+const HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584];
+const BW=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584];
+const SP={"–":0x96,"—":0x97,"‘":0x91,"’":0x92,"“":0x93,"”":0x94,"•":0x95,"…":0x85,"×":0xD7,"€":0x80,"°":0xB0,"·":0xB7};
+const enc=s=>{let o="";for(const ch of String(s)){const c=ch.codePointAt(0);o+=c>=32&&c<=126?ch:SP[ch]!==undefined?String.fromCharCode(SP[ch]):(c>=161&&c<=255)?ch:c===160?" ":c===9||c===10?" ":"?"}return o};
+const cw=(c,b)=>c>=32&&c<=126?(b?BW:HW)[c-32]:c===0x96?556:c===0x97?1000:c===0x91||c===0x92?(b?278:222):c===0x93||c===0x94?(b?500:333):c===0x95?350:c===0x85?1000:c===0xA0?278:c===0xD7?584:556;
+const tw=(s,sz,b)=>{const e=enc(s);let w=0;for(let i=0;i<e.length;i++)w+=cw(e.charCodeAt(i),b);return w*sz/1000};
+const esc=s=>s.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+const NAVY=[.071,.208,.357],TEAL=[.059,.545,.553],INK=[.08,.13,.24],MUT=[.35,.4,.47],LINE=[.84,.87,.91],BG=[.957,.969,.98],WBG=[1,.957,.839],WINK=[.42,.27,0],RED=[.70,.15,.12],GRN=[.10,.48,.24],WHITE=[1,1,1];
+const col=c=>c.map(v=>v.toFixed(3)).join(" ");
+const pages=[];let ops,y;
+const newPage=()=>{ops=[];pages.push(ops);y=M};
+const Y=v=>(HT-v).toFixed(2);
+const put=(s,x,yb,sz,b,c)=>ops.push(`${col(c||INK)} rg BT /${b?"F2":"F1"} ${sz} Tf ${x.toFixed(2)} ${Y(yb)} Td (${esc(enc(s))}) Tj ET`);
+const putR=(s,xr,yb,sz,b,c)=>put(s,xr-tw(s,sz,b),yb,sz,b,c);
+const rect=(x,yt,w,h,c)=>ops.push(`${col(c)} rg ${x.toFixed(2)} ${Y(yt+h)} ${w.toFixed(2)} ${h.toFixed(2)} re f`);
+const hline=(x1,x2,yy,c,wd)=>ops.push(`${col(c)} RG ${wd||0.5} w ${x1.toFixed(2)} ${Y(yy)} m ${x2.toFixed(2)} ${Y(yy)} l S`);
+function wrap(s,w,sz,b){const out=[];for(const para of String(s).split("\n")){if(!para.trim()){out.push("");continue}let line="";for(const word of para.split(/\s+/)){if(!word)continue;const t=line?line+" "+word:word;if(tw(t,sz,b)<=w){line=t;continue}
+ if(line){out.push(line);line=""}
+ if(tw(word,sz,b)<=w)line=word;else{let cur="";for(const ch of word){if(cur&&tw(cur+ch,sz,b)>w){out.push(cur);cur=ch}else cur+=ch}line=cur}}
+ out.push(line)}return out}
+const ensure=h=>{if(y+h>BOT){newPage();return true}return false};
+function heading(t){ensure(40);y+=8;put(t,M,y+12,13,1,NAVY);y+=18;hline(M,M+CW,y,LINE,0.8);y+=8}
+function para(t,sz,o){o=o||{};const lead=sz*1.38,w=o.w||CW,L=wrap(t,w,sz,o.b);if(L.length<=6)ensure(L.length*lead);for(const ln of L){ensure(lead);put(ln,o.x||M,y+sz,sz,o.b,o.c||INK);y+=lead}y+=o.after==null?4:o.after}
+function note(t){const sz=9,lead=12.5,ls=wrap(t,CW-20,sz,0);const h=ls.length*lead+12;ensure(h+6);rect(M,y,CW,h,WBG);ls.forEach((l,i)=>put(l,M+10,y+8+sz+i*lead-1,sz,0,WINK));y+=h+8}
+const n0=v=>v==null||isNaN(v)?"–":(Math.round(v)<0?"-":"")+Math.abs(Math.round(v)).toLocaleString("en-US");
+const pc=v=>v==null||v==="n/a"?"n/a":(v*100).toFixed(1)+"%",xx=v=>v==null||v==="n/a"?"n/a":v.toFixed(2)+"×";
+function kpis(items){const gap=8,bw=(CW-2*gap)/3,bh=44;for(let i=0;i<items.length;i+=3){ensure(bh+gap);items.slice(i,i+3).forEach((it,j)=>{const x=M+j*(bw+gap);rect(x,y,bw,bh,BG);let sz=13;while(sz>8&&tw(it[1],sz,1)>bw-16)sz-=.5;put(it[1],x+8,y+8+sz,sz,1,it[2]||NAVY);put(it[0],x+8,y+bh-8,7.5,0,MUT)});y+=bh+gap}}
+function table(cols,body,o){o=o||{};const sz=o.sz||8,lead=sz*1.28,pad=3.5;
+ const head=()=>{const ls=cols.map(c=>wrap(c.l,c.w-2*pad,sz,1));const h=Math.max(...ls.map(l=>l.length))*lead+2*pad;rect(M,y,CW,h,NAVY);let x=M;cols.forEach((c,i)=>{ls[i].forEach((l,k)=>{const yy=y+pad+sz+k*lead-1;c.a==="r"?putR(l,x+c.w-pad,yy,sz,1,WHITE):put(l,x+pad,yy,sz,1,WHITE)});x+=c.w});y+=h};
+ ensure(40);head();
+ body.forEach((r,ri)=>{const ls=cols.map((c,i)=>{const t=typeof r.c[i]==="object"?r.c[i].t:r.c[i];return wrap(t,c.w-2*pad,sz,r.b)});const h=Math.max(...ls.map(l=>l.length))*lead+2*pad;
+ if(y+h>BOT){newPage();head()}
+ if(r.fill)rect(M,y,CW,h,r.fill);else if(ri%2)rect(M,y,CW,h,[.975,.982,.99]);
+ let x=M;cols.forEach((c,i)=>{const cc=typeof r.c[i]==="object"?r.c[i].c:null;ls[i].forEach((l,k)=>{const yy=y+pad+sz+k*lead-1;c.a==="r"?putR(l,x+c.w-pad,yy,sz,r.b,cc||INK):put(l,x+pad,yy,sz,r.b,cc||INK)});x+=c.w});
+ y+=h;hline(M,M+CW,y,LINE,0.4)});y+=8}
+function chart(PC,PB,y0){const H=PC.length,h=150,L=44,w=CW-L,top=y+6;ensure(h+46);const t0=y+6;
+ const mx0=Math.max(1,...PC,...PB),mag=Math.pow(10,Math.floor(Math.log10(mx0))),mx=Math.ceil(mx0/mag*2)/2*mag||mx0;
+ const short=v=>v>=1e6?(v/1e6).toFixed(v%1e6?1:0)+"M":v>=1e3?Math.round(v/1e3)+"k":String(Math.round(v));
+ for(let k=0;k<=4;k++){const yy=t0+h-h*k/4;hline(M+L,M+CW,yy,LINE,0.4);putR(short(mx*k/4),M+L-4,yy+2.5,7,0,MUT)}
+ const bw=w/H,fs=H>20?5.5:7;
+ for(let t=0;t<H;t++){const x=M+L+t*bw,a=PC[t]/mx*h,b=PB[t]/mx*h,bwid=Math.max(1,bw/2-1.5);rect(x+1,t0+h-a,bwid,a,NAVY);rect(x+bw/2,t0+h-b,bwid,b,TEAL);
+  const lab=String(y0+t);put(lab,x+bw/2-tw(lab,fs,0)/2,t0+h+10,fs,0,MUT)}
+ const ly=t0+h+22;rect(M+L,ly-6,7,7,NAVY);put("Cost",M+L+11,ly,8,0,INK);rect(M+L+50,ly-6,7,7,TEAL);put("Benefit",M+L+61,ly,8,0,INK);y=ly+10}
+// ================= content
+newPage();
+const stampDate=meta.stamp;
+put("NDC/NAP Costing Tool",M,y+22,22,1,NAVY);y+=30;put("Costing and cost-benefit summary",M,y+12,12,0,MUT);y+=18;put("Generated "+stampDate,M,y+8,8.5,0,MUT);y+=20;
+note("Indicative estimates only. Costs are adjusted with a country price-level index. Benefit figures are user-entered assumptions and may be illustrative placeholders; replace them with project-specific data before using results in a budget or investment decision.");
+const p=R.port;
+heading("Headline results");
+const K=[["Base cost (USD)",n0(R.base)],["Price-adjusted cost (USD)",n0(R.gcost)],["With contingency (USD)",n0(R.grand)]];
+if(R.nB)K.push(["Cost range from benchmarks (USD)",n0(R.gLo)+" – "+n0(R.gHi)]);
+K.push(["International finance (USD)",n0(R.intl)],["Domestic co-finance (USD)",n0(R.dom)],["Cost per person reached (USD)",P.benef>0?n0(R.gcost/P.benef):"–"],
+["Portfolio NPV (USD)",n0(p.npv),p.npv<0?RED:GRN],["Benefit-cost ratio",xx(p.bcr)],["IRR",pc(p.irr)],["Payback (years)",p.payback==null?"beyond horizon":String(p.payback)]);
+kpis(K);
+if(R.warn.length)note("No price-level data for "+R.warn.join(", ")+". An index of "+(+P.proxy).toFixed(2)+" was used. Replace it with a documented regional proxy.");
+if(R.nL)note(R.nL+" intervention(s) use an indicative-only benchmark (few observations or projects). Treat their range as a rough guide.");
+heading("Assumptions");
+const A=[["Contingency",pc(P.cont)],["O&M rate on CAPEX (per year)",pc(P.om)],["Discount rate",pc(P.disc)],["Start year",String(P.startYear)],["Evaluation period (years)",String(P.horizon)],["Low / high discount rate",pc(P.discLo)+" / "+pc(P.discHi)],["Low / high benefit scenario",pc(P.bLo)+" / "+pc(P.bHi)],["Index if no country data",(+P.proxy).toFixed(2)],["People reached (total)",n0(P.benef)],["Benchmark price basis",meta.basis==="normalised"?"Kenya price level":"Nominal USD"]];
+const ab=[];for(let i=0;i<A.length;i+=2)ab.push({c:[A[i][0],{t:A[i][1]},"",A[i+1]?A[i+1][0]:"",A[i+1]?A[i+1][1]:""]});
+table([{l:"Parameter",w:150},{l:"Value",w:90,a:"r"},{l:"",w:25},{l:"Parameter",w:150},{l:"Value",w:100,a:"r"}],ab);
+heading("Interventions");
+const idxOf=r=>r.country==="N/A"?1:(GEO[r.country]==null?(+P.proxy||1):GEO[r.country]);
+const ib=rows.map((r,i)=>({c:[(i+1)+". "+r.name,r.country,r.type,String(+r.qty||0),n0(+r.unit||0),idxOf(r).toFixed(3),n0((+r.qty||0)*(+r.unit||0)*idxOf(r)),n0(+r.ben||0),r.bm?(r.ulab||"Benchmark")+(r.conf==="Low"?" (indicative)":""):"Custom"]}));
+ib.push({b:1,fill:BG,c:["Total","","","","","",n0(R.gcost),n0(rows.reduce((a,r)=>a+(+r.ben||0),0)),""]});
+table([{l:"Intervention",w:136},{l:"Country",w:50},{l:"Type",w:34},{l:"Qty",w:30,a:"r"},{l:"Unit cost (USD)",w:52,a:"r"},{l:"Cost index",w:36,a:"r"},{l:"Price-adj. cost (USD)",w:62,a:"r"},{l:"Benefit / yr (USD)",w:52,a:"r"},{l:"Unit basis",w:63}],ib,{sz:7.5});
+heading("Annual cost and benefit, portfolio (USD)");
+chart(R.PC,R.PB,P.startYear);
+heading("Cost-benefit by intervention");
+const cb=R.rows.map(r=>({c:[r.name,n0(r.geoCost),n0(r.pc),n0(r.pb),{t:n0(r.npv),c:r.npv<0?RED:GRN},xx(r.bcr),r.payback==null?">"+P.horizon:String(r.payback),pc(r.irr)]}));
+cb.push({b:1,fill:BG,c:["PORTFOLIO",n0(R.gcost),n0(p.pc),n0(p.pb),{t:n0(p.npv),c:p.npv<0?RED:GRN},xx(p.bcr),p.payback==null?">"+P.horizon:String(p.payback),pc(p.irr)]});
+table([{l:"Intervention",w:165},{l:"Price-adj. cost",w:62,a:"r"},{l:"PV cost",w:58,a:"r"},{l:"PV benefit",w:58,a:"r"},{l:"NPV",w:58,a:"r"},{l:"BCR",w:36,a:"r"},{l:"Payback (yrs)",w:40,a:"r"},{l:"IRR",w:38,a:"r"}],cb,{sz:7.5});
+para("Enabling components (outreach, coordination, management) often show a benefit-cost ratio below 1 on monetised benefits alone, because their value is realised through the productive components.",8.5,{c:MUT});
+heading("Sensitivity: portfolio NPV and benefit-cost ratio");
+const lab=["Low","Base","High"];
+const sr=[0,1,2].map(i=>({c:["Discount rate "+(R.rates[i]*100).toFixed(1)+"%",...R.npv[i].map(v=>n0(v)),...R.bcr[i].map(xx)]}));
+table([{l:"",w:115},...lab.map((l,i)=>({l:"NPV, benefits "+l.toLowerCase()+" ("+(R.fs[i]===1?"base":((R.fs[i]-1)*100).toFixed(0)+"%")+")",w:75,a:"r"})),...lab.map(l=>({l:"BCR, benefits "+l.toLowerCase(),w:58,a:"r"}))],sr,{sz:7.5});
+heading("How the numbers are calculated");
+para("1) Base cost = quantity × unit cost (a benchmark median if one is picked; its 25th–75th percentile range gives the low–high cost, assuming all items sit at the low or high end together). 2) Price-adjusted cost = base × country cost index (Kenya = 1.00, derived from World Bank price level data). 3) Spending is phased by the chosen method. 4) CAPEX interventions incur O&M each year equal to the O&M rate × cumulative prior CAPEX, continuing for the whole evaluation period. 5) Costs and benefits are discounted to the start year. 6) Benefits ramp up linearly from their start year to the steady-state amount. NPV, benefit-cost ratio, IRR and payback follow from the discounted flows. Contingency is shown on top of price-adjusted cost for budgeting and is not included in the cost-benefit analysis.",8.5);
+para("Limitations: benchmarks come from 662 itemised Adaptation Fund budget lines in 13 projects across 10 countries, grouped into activity types and unit families by a first-pass rule set that has not yet been expert-reviewed. They are nominal USD from different years and countries. Cells with few observations or projects are marked indicative only, and activities with no stated unit are left out. Four African countries have no price-level data (Eritrea, Guinea, Somalia, South Sudan); a proxy index must be entered."+(meta.basis==="normalised"?" Benchmarks are rebased to Kenya prices using World Bank 2024 price levels of the source countries (experimental; the cell classification is a reconstruction and inflation is not adjusted).":""),8.5);
+// ================= footers
+pages.forEach((o,i)=>{ops=o;hline(M,M+CW,HT-M+2,LINE,0.5);put("NDC/NAP Costing Tool – indicative estimates only",M,HT-M+14,7.5,0,MUT);putR("Page "+(i+1)+" of "+pages.length,M+CW,HT-M+14,7.5,0,MUT)});
+// ================= assemble
+const objs=[];const add=s=>{objs.push(s);return objs.length};
+add("<< /Type /Catalog /Pages 2 0 R >>");add("PLACEHOLDER");add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+add(`<< /Title (${esc(enc("NDC/NAP Costing Tool - costing summary"))}) /Producer (NDC/NAP Costing Tool prototype) /CreationDate (D:${meta.iso}) >>`);
+const kids=[];
+pages.forEach(o=>{const body=o.join("\n");const cid=objs.length+2;const pid=add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${HT}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${cid} 0 R >>`);kids.push(pid+" 0 R");add(`<< /Length ${body.length} >>\nstream\n${body}\nendstream`)});
+objs[1]=`<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${pages.length} >>`;
+let out="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";const offs=[];
+objs.forEach((s,i)=>{offs.push(out.length);out+=`${i+1} 0 obj\n${s}\nendobj\n`});
+const xr=out.length;out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+offs.map(o=>String(o).padStart(10,"0")+" 00000 n \n").join("")+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R /Info 5 0 R >>\nstartxref\n${xr}\n%%EOF\n`;
+const u=new Uint8Array(out.length);for(let i=0;i<out.length;i++)u[i]=out.charCodeAt(i)&255;return u}
+</script>
+<script id="xlsx">
+function buildXlsx(P,rows,R,GEO,meta){
+const enc=new TextEncoder(),xe=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const col=n=>{let s="";n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s};
+// style ids
+const S={def:0,bold:1,hdr:2,inNum:3,inTxt:4,num:5,pct:6,ratio:7,idx:8,title:9,wrap:10,inPct:11,inInt:12,inIdx:13,tot:14,note:15,int:16,inPctWhole:17};
+const c=(v,s,f)=>({v,s,f});
+function sheetXml(cells,widths,freezeRow){
+ let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0">'+(freezeRow?`<pane ySplit="${freezeRow}" topLeftCell="A${freezeRow+1}" activePane="bottomLeft" state="frozen"/>`:"")+'</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>';
+ if(widths)x+="<cols>"+widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")+"</cols>";
+ x+="<sheetData>";
+ cells.forEach((row,r)=>{if(!row)return;x+=`<row r="${r+1}">`;row.forEach((k,ci)=>{if(k==null||k.v===undefined&&!k.f)return;const ref=col(ci)+(r+1),st=k.s?` s="${k.s}"`:"";
+  const v=k.v;
+  if(k.f){const f=`<f>${xe(k.f)}</f>`;if(v===undefined||v===null)x+=`<c r="${ref}"${st}>${f}</c>`;else if(typeof v==="number"&&isFinite(v))x+=`<c r="${ref}"${st}>${f}<v>${v}</v></c>`;else x+=`<c r="${ref}"${st} t="str">${f}<v>${xe(v)}</v></c>`}
+  else if(typeof v==="number"){if(isFinite(v))x+=`<c r="${ref}"${st}><v>${v}</v></c>`}
+  else if(v!==null&&v!=="")x+=`<c r="${ref}"${st} t="inlineStr"><is><t xml:space="preserve">${xe(v)}</t></is></c>`});x+="</row>"});
+ return x+"</sheetData></worksheet>"}
+const H=P.horizon,y0=P.startYear,n=rows.length;
+// ---- Assumptions
+const A=[[c("Assumptions",S.title)],[c("Blue cells are inputs. Changing them updates the live formulas in this workbook (see About).",S.note)],[],[c("Parameter",S.hdr),c("Value",S.hdr),c("Note",S.hdr)],
+[c("Contingency"),c(P.cont,S.inPct),c("Added to price-adjusted cost for budgeting; not part of the cost-benefit analysis")],
+[c("O&M rate on CAPEX (per year)"),c(P.om,S.inPct),c("Applied to cumulative CAPEX in the tool's annual flows (static here)")],
+[c("Discount rate"),c(P.disc,S.inPct),c("Used to discount the annual flows on Portfolio_Annual")],
+[c("Start year"),c(P.startYear,S.inInt),c("Base year for discounting")],
+[c("Evaluation period (years)"),c(P.horizon,S.inInt),c("Fixed in this export; changing it does not extend the annual flows")],
+[c("Low discount rate"),c(P.discLo,S.inPct),c("Sensitivity")],[c("High discount rate"),c(P.discHi,S.inPct),c("Sensitivity")],
+[c("Low benefit scenario"),c(P.bLo,S.inPct),c("Change vs base benefits")],[c("High benefit scenario"),c(P.bHi,S.inPct),c("Change vs base benefits")],
+[c("Index if no country data"),c(+P.proxy,S.inIdx),c("Proxy cost index used for countries with no price-level data")],
+[c("People reached (total)"),c(+P.benef||0,S.inNum),c("Counted once, not per intervention")],[c("Benchmark price basis"),c(meta.basis==="normalised"?"Kenya price level (experimental)":"Nominal USD (draft library)"),c("Set in the web tool. Rebased benchmarks use World Bank 2024 price levels of the source countries; inflation is not adjusted.")]];
+const aR={cont:5,om:6,disc:7,start:8,hor:9,dlo:10,dhi:11,blo:12,bhi:13,proxy:14,ppl:15};
+const AS=k=>`Assumptions!$B$${aR[k]}`;
+// ---- Interventions
+const idxOf=r=>r.country==="N/A"?{v:1,n:"Not price-adjusted"}:(GEO[r.country]==null?{v:+P.proxy||1,n:"No country data: proxy index used"}:{v:GEO[r.country],n:""});
+const IH=["Intervention","Sector","Country","Type","Benchmark","Unit","Qty","Unit cost (USD)","Cost index used","Base cost (USD)","Price-adjusted cost (USD)","Contingency (USD)","Cost incl. contingency (USD)","Benchmark low / unit","Benchmark high / unit","Low cost (USD)","High cost (USD)","Intl finance (%)","International finance (USD)","Domestic co-finance (USD)","Phasing","Benefit / yr (USD)","Benefit start","Ramp-up (yrs)","Index note"];
+const I=[[c("Interventions",S.title)],[c("Blue = input values from the tool. Cost columns are live formulas. Benefits and phasing feed static annual flows (see About).",S.note)],[],IH.map(h=>c(h,S.hdr))];
+const i0=5;let tot={b:0,g:0,ct:0,lo:0,hi:0,intl:0};
+rows.forEach((r,k)=>{const R5=i0+k,ix=idxOf(r),q=+r.qty||0,u=+r.unit||0,b=q*u,g=b*ix.v,ct=g*P.cont,lo=q*(r.lo!=null?+r.lo:u)*ix.v,hi=q*(r.hi!=null?+r.hi:u)*ix.v,iv=g*(+r.intl)/100;
+ const bmLabel=r.bm?`${r.bm} (${r.conf==="Low"?"indicative only":r.conf})`:"Custom unit cost";
+ I.push([c(r.name,S.inTxt),c(r.sector||"",S.inTxt),c(r.country,S.inTxt),c(r.type,S.inTxt),c(bmLabel,S.inTxt),c(r.ulab||"",S.inTxt),c(q,S.inNum),c(u,S.inNum),c(ix.v,S.inIdx),
+ c(b,S.num,`G${R5}*H${R5}`),c(g,S.num,`J${R5}*I${R5}`),c(ct,S.num,`K${R5}*${AS("cont")}`),c(g+ct,S.num,`K${R5}+L${R5}`),
+ c(r.lo!=null?+r.lo:null,S.inNum),c(r.hi!=null?+r.hi:null,S.inNum),
+ c(lo,S.num,`G${R5}*IF(N${R5}="",H${R5},N${R5})*I${R5}`),c(hi,S.num,`G${R5}*IF(O${R5}="",H${R5},O${R5})*I${R5}`),
+ c(+r.intl,S.inNum),c(iv,S.num,`K${R5}*R${R5}/100`),c(g-iv,S.num,`K${R5}-S${R5}`),c(r.phasing,S.inTxt),c(+r.ben||0,S.inNum),c(+r.benStart,S.inInt),c(+r.ramp,S.inInt),c(ix.n,S.note)]);
+ tot.b+=b;tot.g+=g;tot.ct+=ct;tot.lo+=lo;tot.hi+=hi;tot.intl+=iv});
+const iL=i0+n-1,iT=iL+1,sum=(L)=>`SUM(${L}${i0}:${L}${iL})`;
+const trow=new Array(25).fill(null);trow[0]=c("TOTAL",S.bold);
+[["J",9,tot.b],["K",10,tot.g],["L",11,tot.ct],["M",12,tot.g+tot.ct],["P",15,tot.lo],["Q",16,tot.hi],["S",18,tot.intl],["T",19,tot.g-tot.intl]].forEach(([L,ci,v])=>trow[ci]=c(v,S.tot,sum(L)));
+I.push(trow);
+// ---- CBA by intervention
+const Cb=[[c("Cost-benefit by intervention",S.title)],[c("PV cost, PV benefit, payback and IRR are values computed by the tool. NPV, BCR and Result are formulas.",S.note)],[],["Intervention","Price-adjusted cost (USD)","PV cost (USD)","PV benefit (USD)","NPV (USD)","BCR","Payback (years)","IRR","Result"].map(h=>c(h,S.hdr))];
+R.rows.forEach((r,k)=>{const r5=5+k;Cb.push([c(r.name),c(r.geoCost,S.num,`Interventions!K${i0+k}`),c(r.pc,S.num),c(r.pb,S.num),c(r.npv,S.num,`D${r5}-C${r5}`),c(r.bcr==null?"n/a":r.bcr,S.ratio,`IF(C${r5}>0,D${r5}/C${r5},"n/a")`),c(r.payback==null?">"+H:r.payback,S.int),c(r.irr==null?"n/a":r.irr,S.pct),c(r.npv>0?"Net positive":"Net negative",0,`IF(E${r5}>0,"Net positive","Net negative")`)])});
+const cL=4+n,cT=cL+1,p=R.port;
+Cb.push([c("PORTFOLIO",S.bold),c(R.gcost,S.tot,`SUM(B5:B${cL})`),c(p.pc,S.tot,`SUM(C5:C${cL})`),c(p.pb,S.tot,`SUM(D5:D${cL})`),c(p.npv,S.tot,`D${cT}-C${cT}`),c(p.bcr==null?"n/a":p.bcr,S.ratio,`IF(C${cT}>0,D${cT}/C${cT},"n/a")`),c(p.payback==null?">"+H:p.payback,S.int),c(p.irr==null?"n/a":p.irr,S.pct),c(p.npv>0?"Net positive":"Net negative",0,`IF(E${cT}>0,"Net positive","Net negative")`)]);
+Cb.push([],[c("Enabling components (outreach, coordination, management) often show a BCR below 1 on monetised benefits alone, because their value is realised through the productive components.",S.note)]);
+// ---- Portfolio annual
+const p0=5,pL=p0+H-1,pT=pL+1;
+const PA=[[c("Portfolio annual cost and benefit (USD)",S.title)],[c("Cost and Benefit columns are values from the tool (including phasing, O&M and benefit ramp). Everything to the right is a live formula using the Assumptions sheet.",S.note)],[],["Year","Cost","Benefit","Net cash flow","Cumulative net","Discount factor","PV cost","PV benefit"].map(h=>c(h,S.hdr))];
+let cum=0;
+for(let t=0;t<H;t++){const r5=p0+t;cum+=R.PB[t]-R.PC[t];const d=1/Math.pow(1+P.disc,t);
+ PA.push([c(y0+t,S.int,t===0?AS("start"):`A${r5-1}+1`),c(R.PC[t],S.num),c(R.PB[t],S.num),c(R.PB[t]-R.PC[t],S.num,`C${r5}-B${r5}`),c(cum,S.num,t===0?`D${r5}`:`E${r5-1}+D${r5}`),c(d,S.idx,`1/(1+${AS("disc")})^(A${r5}-${AS("start")})`),c(R.PC[t]*d,S.num,`B${r5}*F${r5}`),c(R.PB[t]*d,S.num,`C${r5}*F${r5}`)])}
+PA.push([c("TOTAL",S.bold),c(R.PC.reduce((a,b)=>a+b,0),S.tot,`SUM(B${p0}:B${pL})`),c(R.PB.reduce((a,b)=>a+b,0),S.tot,`SUM(C${p0}:C${pL})`),c(null),c(null),c(null),c(p.pc,S.tot,`SUM(G${p0}:G${pL})`),c(p.pb,S.tot,`SUM(H${p0}:H${pL})`)]);
+PA.push([],[c("NPV (USD)",S.bold),c(p.npv,S.tot,`H${pT}-G${pT}`)],[c("Benefit-cost ratio",S.bold),c(p.bcr==null?"n/a":p.bcr,S.ratio,`IF(G${pT}>0,H${pT}/G${pT},"n/a")`)],[c("IRR",S.bold),c(p.irr==null?"n/a":p.irr,S.pct,`IFERROR(IRR(D${p0}:D${pL}),"n/a")`)]);
+const npvRef=`Portfolio_Annual!$B$${pT+2}`,bcrRef=`Portfolio_Annual!$B$${pT+3}`,irrRef=`Portfolio_Annual!$B$${pT+4}`;
+// ---- Results
+const rs=[[c("Results",S.title)],[c("Indicative estimates only. Benefit figures in the worked example are illustrative placeholders.",S.note)],[],[c("Measure",S.hdr),c("Value",S.hdr),c("Basis",S.hdr)]];
+const T=(L)=>`Interventions!${L}${iT}`;
+rs.push([c("Base cost (USD)"),c(R.base,S.num,T("J")),c("Quantity x unit cost")],[c("Price-adjusted cost (USD)"),c(R.gcost,S.num,T("K")),c("Base cost x country cost index")],[c("With contingency (USD)"),c(R.grand,S.num,T("M")),c("For budgeting; excluded from cost-benefit")]);
+if(R.nB)rs.push([c("Cost range from benchmarks, low (USD)"),c(R.gLo,S.num,T("P")),c("25th percentile; all items at the low end together")],[c("Cost range from benchmarks, high (USD)"),c(R.gHi,S.num,T("Q")),c("75th percentile; all items at the high end together")]);
+rs.push([c("International finance (USD)"),c(R.intl,S.num,T("S"))],[c("Domestic co-finance (USD)"),c(R.dom,S.num,T("T"))],
+[c("Cost per person reached (USD)"),c(P.benef>0?R.gcost/P.benef:"n/a",S.num,`IF(${AS("ppl")}>0,${T("K")}/${AS("ppl")},"n/a")`),c("People counted once")],
+[c("Portfolio NPV (USD)"),c(p.npv,S.num,npvRef),c("Portfolio_Annual")],[c("Benefit-cost ratio"),c(p.bcr==null?"n/a":p.bcr,S.ratio,bcrRef)],[c("IRR"),c(p.irr==null?"n/a":p.irr,S.pct,irrRef)],
+[c("Payback (years)"),c(p.payback==null?"beyond horizon":p.payback,S.int),c("Years with negative cumulative net cash flow, plus one (static)")]);
+// ---- Sensitivity
+const rate=["dlo","disc","dhi"],fac=[`(1+${AS("blo")})`,"1",`(1+${AS("bhi")})`],lab=["Low","Base","High"];
+const rngA=`Portfolio_Annual!$A$${p0}:$A$${pL}`,rngB=`Portfolio_Annual!$B$${p0}:$B$${pL}`,rngC=`Portfolio_Annual!$C$${p0}:$C$${pL}`;
+const SE=[[c("Sensitivity: portfolio NPV and benefit-cost ratio",S.title)],[c("Live formulas over Portfolio_Annual. Rates and benefit scenarios come from Assumptions.",S.note)],[],[c("NPV (USD)",S.hdr),...lab.map((l,i)=>c(`Benefits ${l}`,S.hdr))]];
+const hdrRow=SE.length+1;
+rate.forEach((k,i)=>{const r5=SE.length+1;SE.push([c(`Discount rate`,0),...fac.map((f,j)=>c(R.npv[i][j],S.num,`SUMPRODUCT((${f}*${rngC}-${rngB})/(1+${AS(k)})^(${rngA}-${AS("start")}))`))]);SE[r5-1][0]=c(R.rates[i],S.pct,AS(k))});
+SE.push([],[c("Benefit-cost ratio",S.hdr),...lab.map(l=>c(`Benefits ${l}`,S.hdr))]);
+rate.forEach((k,i)=>{const r5=SE.length+1;SE.push([c(R.rates[i],S.pct,AS(k)),...fac.map((f,j)=>c(R.bcr[i][j]==null?"n/a":R.bcr[i][j],S.ratio,`IFERROR(SUMPRODUCT(${f}*${rngC}/(1+${AS(k)})^(${rngA}-${AS("start")}))/SUMPRODUCT(${rngB}/(1+${AS(k)})^(${rngA}-${AS("start")})),"n/a")`))])});
+// ---- Intervention annual
+const IA=[[c("Annual cost and benefit by intervention (USD)",S.title)],[c("Values from the tool.",S.note)],[],["Intervention","Year","Cost","Benefit","Net cash flow"].map(h=>c(h,S.hdr))];
+R.rows.forEach(r=>{for(let t=0;t<H;t++){const r5=IA.length+1;IA.push([c(r.name),c(y0+t,S.int),c(r.C[t],S.num),c(r.B[t],S.num),c(r.B[t]-r.C[t],S.num,`D${r5}-C${r5}`)])}});
+// ---- About
+const ab=[[c("NDC/NAP Costing Tool: export",S.title)],[c("Generated "+meta.stamp+" from the browser prototype. Nothing was sent anywhere.")],[],
+[c("Indicative estimates only. Costs are adjusted with a country price-level index; replace placeholder benefit figures with project-specific data before using results in a budget or investment decision.",S.wrap)],[],
+[c("How to read this workbook",S.bold)],
+[c("Blue cells are inputs; black cells are formulas or values computed by the tool. Numbers use USD.")],
+[c("Live: cost columns on Interventions; NPV, BCR, IRR and the sensitivity grids recalculate from Assumptions (discount rate, start year, sensitivity ranges).")],
+[c("Static: the annual cost and benefit flows (phasing, O&M, benefit ramp-up), PV values per intervention, payback. To change those, edit the inputs in the web tool and export again.")],
+[c("Contingency is shown for budgeting and is not part of the cost-benefit analysis.")],[],
+[c("Method",S.bold)],
+[c("Base cost = quantity x unit cost. Price-adjusted cost = base x country cost index (Kenya = 1.00; World Bank price level data). Spending is phased by the chosen method. CAPEX interventions incur O&M each year equal to the O&M rate x cumulative prior CAPEX. Costs and benefits are discounted to the start year; benefits ramp up linearly.")],[],
+[c("Limitations",S.bold)],
+[c("Benchmarks come from 662 itemised Adaptation Fund budget lines in 13 projects across 10 countries, grouped by a first-pass rule set that has not been expert-reviewed. They are nominal USD from different years and countries and are not price-level normalised.")]];
+if(R.warn.length)ab.push([],[c("Warning: no price-level data for "+R.warn.join(", ")+". An index of "+(+P.proxy).toFixed(2)+" was used.",S.bold)]);
+if(R.nL)ab.push([c("Warning: "+R.nL+" intervention(s) use an indicative-only benchmark (few observations or projects).",S.bold)]);
+const sheets=[["About",ab,[110]],["Assumptions",A,[34,14,70],4],["Interventions",I,[46,28,14,9,40,22,8,14,11,14,16,14,16,14,14,14,14,10,16,16,22,14,10,10,32],4],["Results",rs,[40,18,60],4],["CBA_by_Intervention",Cb,[46,16,14,14,14,9,10,9,16],4],["Portfolio_Annual",PA,[16,14,14,14,14,12,14,14],4],["Sensitivity",SE,[26,18,18,18],4],["Intervention_Annual",IA,[46,8,14,14,14],4]];
+// ---- package
+const files={};
+files["[Content_Types].xml"]='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+"</Types>";
+files["_rels/.rels"]='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+files["xl/workbook.xml"]='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${s[0]}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")+'</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>';
+files["xl/_rels/workbook.xml.rels"]='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")+`<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+const fnt=(extra)=>`<font>${extra}<sz val="10"/><name val="Arial"/></font>`;
+files["xl/styles.xml"]='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="4"><numFmt numFmtId="164" formatCode="#,##0;(#,##0);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%"/><numFmt numFmtId="166" formatCode="0.00&quot;x&quot;"/><numFmt numFmtId="167" formatCode="0.0000"/></numFmts>'+
+`<fonts count="6">${fnt("")}${fnt("<b/>")}${fnt('<b/><color rgb="FFFFFFFF"/>')}${fnt('<color rgb="FF0000FF"/>')}<font><b/><sz val="14"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF586478"/><name val="Arial"/></font></fonts>`+
+'<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF12355B"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+(()=>{const x=(f,n,fi,al)=>`<xf numFmtId="${n}" fontId="${f}" fillId="${fi||0}" borderId="0" xfId="0" applyFont="1"${n?' applyNumberFormat="1"':""}${fi?' applyFill="1"':""}${al?' applyAlignment="1"><alignment '+al+"/></xf>":"/>"}`;
+ const L=[x(0,0),x(1,0),x(2,0,2,'vertical="center" wrapText="1"'),x(3,164),x(3,0),x(0,164),x(0,165),x(0,166),x(0,167),x(4,0),x(0,0,0,'wrapText="1" vertical="top"'),x(3,165),x(3,1),x(3,167),x(1,164),x(5,0),x(0,1),x(3,165)];
+ return `<cellXfs count="${L.length}">${L.join("")}</cellXfs>`})()+'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+sheets.forEach((s,i)=>files[`xl/worksheets/sheet${i+1}.xml`]=sheetXml(s[1],s[2],s[3]));
+// zip (store)
+const CT=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let v=i;for(let k=0;k<8;k++)v=v&1?0xEDB88320^(v>>>1):v>>>1;t[i]=v>>>0}return t})();
+const crc=b=>{let v=0xFFFFFFFF;for(let i=0;i<b.length;i++)v=CT[(v^b[i])&255]^(v>>>8);return(v^0xFFFFFFFF)>>>0};
+const parts=[],cd=[];let off=0;
+const u16=v=>[v&255,(v>>>8)&255],u32=v=>[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255];
+Object.entries(files).forEach(([name,text])=>{const nb=enc.encode(name),db=enc.encode(text),cr=crc(db);
+ const lh=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(cr),...u32(db.length),...u32(db.length),...u16(nb.length),...u16(0)]);
+ parts.push(lh,nb,db);
+ cd.push(new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0x21),...u32(cr),...u32(db.length),...u32(db.length),...u16(nb.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]),nb);
+ off+=lh.length+nb.length+db.length});
+const cdLen=cd.reduce((a,b)=>a+b.length,0),cnt=Object.keys(files).length;
+const eocd=new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(cnt),...u16(cnt),...u32(cdLen),...u32(off),...u16(0)]);
+const all=[...parts,...cd,eocd],out=new Uint8Array(all.reduce((a,b)=>a+b.length,0));let o=0;all.forEach(b=>{out.set(b,o);o+=b.length});return out}
+</script>
+<script>
+const GEO={"Kenya": 1, "Algeria": 0.9666801636, "Angola": 1.051508236737, "Benin": 1.022205304162, "Botswana": 1.115822974827, "Burkina Faso": 1.109325184444, "Burundi": 1.008482496718, "Cabo Verde": 1.414778373019, "Cameroon": 1.011860839389, "Central African Republic": 1.25681193341, "Chad": 1.045761622045, "Comoros": 1.443531141662, "Cote d'Ivoire": 1.103256192125, "DR Congo": 1.240133871251, "Djibouti": 1.372075145265, "Egypt": 0.457424174474, "Equatorial Guinea": 1.217519409743, "Eritrea": null, "Eswatini": 0.973595245585, "Ethiopia": 0.974322293642, "Gabon": 1.104270110656, "Gambia": 0.741113549727, "Ghana": 1.123231881544, "Guinea": null, "Guinea-Bissau": 1.013256371197, "Lesotho": 1.015480119692, "Liberia": 1.3718903201074062, "Libya": 1.159545844169, "Madagascar": 0.911337059579, "Malawi": 1.026311835982, "Mali": 1.011527773684, "Mauritania": 0.909638242404, "Mauritius": 1.145776809595, "Morocco": 1.248573296861, "Mozambique": 1.141910313866, "Namibia": 1.207926139423, "Niger": 1.057399108801, "Nigeria": 0.381374393128, "Republic of Congo": 1.03013627144, "Rwanda": 0.80122879383, "Sao Tome and Principe": 1.670029668603, "Senegal": 1.062384232407, "Seychelles": 1.610702480563, "Sierra Leone": 0.667935288073, "Somalia": null, "South Africa": 1.231654057578, "South Sudan": null, "Sudan": 0.942572736744, "Tanzania": 0.837760755116, "Togo": 1.007301879854, "Tunisia": 0.855046717065, "Uganda": 1.047866550859, "Zambia": 0.888272534992, "Zimbabwe": 1.657637897854},EX=[{"name": "Outreach, Capacity Building, Conflict Resolution & Knowledge Management \u2013 Sudan", "sector": "Institutional Strengthening & Programme Management", "country": "Sudan", "type": "OPEX", "qty": 1, "unit": 407500, "phasing": "Even_4yr", "intl": 100, "ben": 30000, "benStart": 2026, "ramp": 1}, {"name": "Outreach, Capacity Building, Conflict Resolution & Knowledge Management \u2013 Chad", "sector": "Institutional Strengthening & Programme Management", "country": "Chad", "type": "OPEX", "qty": 1, "unit": 407500, "phasing": "Even_4yr", "intl": 100, "ben": 30000, "benStart": 2026, "ramp": 1}, {"name": "Investment in Natural Resource Management & Climate-Resilient Infrastructure \u2013 Sudan", "sector": "Water Resource Management", "country": "Sudan", "type": "CAPEX", "qty": 1, "unit": 3201769, "phasing": "Even_4yr", "intl": 100, "ben": 850000, "benStart": 2027, "ramp": 2}, {"name": "Investment in Natural Resource Management & Climate-Resilient Infrastructure \u2013 Chad", "sector": "Water Resource Management", "country": "Chad", "type": "CAPEX", "qty": 1, "unit": 3062872, "phasing": "Even_4yr", "intl": 100, "ben": 850000, "benStart": 2027, "ramp": 2}, {"name": "Climate-Resilient Agricultural Practices & Livelihoods \u2013 Sudan", "sector": "Agriculture", "country": "Sudan", "type": "CAPEX", "qty": 1, "unit": 2109400, "phasing": "Even_4yr", "intl": 100, "ben": 650000, "benStart": 2027, "ramp": 3}, {"name": "Climate-Resilient Agricultural Practices & Livelihoods \u2013 Chad", "sector": "Agriculture", "country": "Chad", "type": "CAPEX", "qty": 1, "unit": 2119560, "phasing": "Even_4yr", "intl": 100, "ben": 650000, "benStart": 2027, "ramp": 3}, {"name": "Regional Cooperation on Water Resource Development \u2013 Sudan", "sector": "Water Resource Management", "country": "Sudan", "type": "OPEX", "qty": 1, "unit": 197000, "phasing": "Even_4yr", "intl": 100, "ben": 20000, "benStart": 2028, "ramp": 1}, {"name": "Regional Cooperation on Water Resource Development \u2013 Chad", "sector": "Water Resource Management", "country": "Chad", "type": "OPEX", "qty": 1, "unit": 197000, "phasing": "Even_4yr", "intl": 100, "ben": 20000, "benStart": 2028, "ramp": 1}, {"name": "Programme Management, Coordination & M&E (PEC + IE Fee)", "sector": "Institutional Strengthening & Programme Management", "country": "N/A", "type": "OPEX", "qty": 1, "unit": 2297399, "phasing": "Even_4yr", "intl": 100, "ben": 0, "benStart": 2026, "ramp": 1}],LIB=[{"id": "G1|U01", "g": "Technical expertise & consultancy", "u": "Person-day", "n": 58, "med": 600, "lo": 500, "hi": 720, "p": 8, "c": "High"}, {"id": "G1|U02", "g": "Technical expertise & consultancy", "u": "Person-month", "n": 20, "med": 1800, "lo": 904.75, "hi": 2000, "p": 6, "c": "High"}, {"id": "G1|U11", "g": "Technical expertise & consultancy", "u": "Lump sum", "n": 6, "med": 35000, "lo": 17000, "hi": 57500, "p": 2, "c": "Medium"}, {"id": "G2|U01", "g": "Training & capacity building", "u": "Person-day", "n": 14, "med": 400, "lo": 225, "hi": 1000, "p": 5, "c": "High"}, {"id": "G2|U02", "g": "Training & capacity building", "u": "Person-month", "n": 4, "med": 2500, "lo": 2500, "hi": 2500, "p": 1, "c": "Low"}, {"id": "G2|U04", "g": "Training & capacity building", "u": "Event (workshop / meeting / training)", "n": 34, "med": 3000, "lo": 1010.5, "hi": 7681.5, "p": 7, "c": "High"}, {"id": "G2|U05", "g": "Training & capacity building", "u": "Household / person / beneficiary", "n": 3, "med": 2000, "lo": 2000, "hi": 3500, "p": 1, "c": "Low"}, {"id": "G2|U07", "g": "Training & capacity building", "u": "Administrative unit / site", "n": 7, "med": 3933, "lo": 2155, "hi": 5000, "p": 3, "c": "Medium"}, {"id": "G2|U09", "g": "Training & capacity building", "u": "Item / equipment unit", "n": 5, "med": 2000, "lo": 250, "hi": 4600, "p": 2, "c": "Medium"}, {"id": "G2|U11", "g": "Training & capacity building", "u": "Lump sum", "n": 10, "med": 3324, "lo": 1500, "hi": 5000, "p": 2, "c": "Medium"}, {"id": "G3|U01", "g": "Meetings, consultation & awareness", "u": "Person-day", "n": 6, "med": 412.5, "lo": 325, "hi": 875, "p": 3, "c": "Medium"}, {"id": "G3|U03", "g": "Meetings, consultation & awareness", "u": "Per year / recurring annual", "n": 4, "med": 2458.5, "lo": 1916.75, "hi": 2964.75, "p": 2, "c": "Low"}, {"id": "G3|U04", "g": "Meetings, consultation & awareness", "u": "Event (workshop / meeting / training)", "n": 11, "med": 2000, "lo": 375, "hi": 5325, "p": 4, "c": "High"}, {"id": "G3|U07", "g": "Meetings, consultation & awareness", "u": "Administrative unit / site", "n": 6, "med": 3327.5, "lo": 1389.75, "hi": 8691.25, "p": 2, "c": "Medium"}, {"id": "G3|U09", "g": "Meetings, consultation & awareness", "u": "Item / equipment unit", "n": 6, "med": 1404, "lo": 422.75, "hi": 7452.25, "p": 3, "c": "Medium"}, {"id": "G3|U11", "g": "Meetings, consultation & awareness", "u": "Lump sum", "n": 7, "med": 32000, "lo": 7900, "hi": 47500, "p": 3, "c": "Medium"}, {"id": "G4|U01", "g": "Studies, assessments & planning", "u": "Person-day", "n": 24, "med": 725, "lo": 230, "hi": 1200, "p": 6, "c": "High"}, {"id": "G4|U02", "g": "Studies, assessments & planning", "u": "Person-month", "n": 14, "med": 3500, "lo": 2500, "hi": 10250, "p": 2, "c": "Medium"}, {"id": "G4|U03", "g": "Studies, assessments & planning", "u": "Per year / recurring annual", "n": 3, "med": 3692, "lo": 2846, "hi": 4153.5, "p": 2, "c": "Low"}, {"id": "G4|U04", "g": "Studies, assessments & planning", "u": "Event (workshop / meeting / training)", "n": 4, "med": 5825, "lo": 3375, "hi": 8237.5, "p": 3, "c": "Low"}, {"id": "G4|U05", "g": "Studies, assessments & planning", "u": "Household / person / beneficiary", "n": 3, "med": 200, "lo": 150, "hi": 350, "p": 2, "c": "Low"}, {"id": "G4|U07", "g": "Studies, assessments & planning", "u": "Administrative unit / site", "n": 9, "med": 3000, "lo": 138, "hi": 5333, "p": 3, "c": "Medium"}, {"id": "G4|U08", "g": "Studies, assessments & planning", "u": "Trip / mission / travel", "n": 6, "med": 640, "lo": 250, "hi": 2125, "p": 2, "c": "Medium"}, {"id": "G4|U09", "g": "Studies, assessments & planning", "u": "Item / equipment unit", "n": 8, "med": 8442.5, "lo": 525.0, "hi": 25250, "p": 5, "c": "Medium"}, {"id": "G4|U11", "g": "Studies, assessments & planning", "u": "Lump sum", "n": 7, "med": 15000, "lo": 11500, "hi": 46500, "p": 3, "c": "Medium"}, {"id": "G5|U01", "g": "Climate information, early warning & monitoring systems", "u": "Person-day", "n": 5, "med": 250, "lo": 250, "hi": 300, "p": 2, "c": "Medium"}, {"id": "G5|U09", "g": "Climate information, early warning & monitoring systems", "u": "Item / equipment unit", "n": 6, "med": 900, "lo": 575, "hi": 8326.75, "p": 2, "c": "Medium"}, {"id": "G6|U01", "g": "Water & climate-resilient infrastructure", "u": "Person-day", "n": 4, "med": 1200, "lo": 1150, "hi": 1200, "p": 1, "c": "Low"}, {"id": "G6|U07", "g": "Water & climate-resilient infrastructure", "u": "Administrative unit / site", "n": 3, "med": 8333, "lo": 4743.5, "hi": 11250, "p": 2, "c": "Low"}, {"id": "G7|U04", "g": "Ecosystem, land & forest restoration", "u": "Event (workshop / meeting / training)", "n": 5, "med": 2000, "lo": 2000, "hi": 2000, "p": 2, "c": "Medium"}, {"id": "G7|U06", "g": "Ecosystem, land & forest restoration", "u": "Area (hectare)", "n": 4, "med": 340.5, "lo": 223.25, "hi": 504.42, "p": 3, "c": "Low"}, {"id": "G7|U07", "g": "Ecosystem, land & forest restoration", "u": "Administrative unit / site", "n": 4, "med": 1075, "lo": 137.5, "hi": 2970.75, "p": 2, "c": "Low"}, {"id": "G8|U01", "g": "Agriculture & livelihood support", "u": "Person-day", "n": 5, "med": 325, "lo": 325, "hi": 325, "p": 3, "c": "Medium"}, {"id": "G8|U04", "g": "Agriculture & livelihood support", "u": "Event (workshop / meeting / training)", "n": 4, "med": 200, "lo": 100, "hi": 725, "p": 2, "c": "Low"}, {"id": "G8|U05", "g": "Agriculture & livelihood support", "u": "Household / person / beneficiary", "n": 11, "med": 115, "lo": 42, "hi": 237.34, "p": 2, "c": "Medium"}, {"id": "G8|U07", "g": "Agriculture & livelihood support", "u": "Administrative unit / site", "n": 8, "med": 5333, "lo": 4700, "hi": 6291.92, "p": 2, "c": "Medium"}, {"id": "G8|U08", "g": "Agriculture & livelihood support", "u": "Trip / mission / travel", "n": 5, "med": 692, "lo": 400, "hi": 692, "p": 3, "c": "Medium"}, {"id": "G8|U09", "g": "Agriculture & livelihood support", "u": "Item / equipment unit", "n": 5, "med": 2084, "lo": 123, "hi": 70000, "p": 5, "c": "Medium"}, {"id": "G8|U11", "g": "Agriculture & livelihood support", "u": "Lump sum", "n": 6, "med": 4525, "lo": 4525, "hi": 4525, "p": 2, "c": "Medium"}, {"id": "G9|U02", "g": "Programme management, M&E & operating costs", "u": "Person-month", "n": 20, "med": 2000, "lo": 975, "hi": 3500, "p": 6, "c": "High"}, {"id": "G9|U03", "g": "Programme management, M&E & operating costs", "u": "Per year / recurring annual", "n": 6, "med": 6125, "lo": 4732.5, "hi": 9062.5, "p": 5, "c": "Medium"}, {"id": "G9|U07", "g": "Programme management, M&E & operating costs", "u": "Administrative unit / site", "n": 5, "med": 865, "lo": 417, "hi": 1000, "p": 2, "c": "Medium"}, {"id": "G9|U08", "g": "Programme management, M&E & operating costs", "u": "Trip / mission / travel", "n": 5, "med": 240, "lo": 156, "hi": 18000, "p": 2, "c": "Medium"}, {"id": "G9|U11", "g": "Programme management, M&E & operating costs", "u": "Lump sum", "n": 12, "med": 12000, "lo": 6562.5, "hi": 17750, "p": 3, "c": "High"}, {"id": "G10|U09", "g": "Equipment, goods & ICT", "u": "Item / equipment unit", "n": 4, "med": 9400, "lo": 1725, "hi": 21000, "p": 3, "c": "Low"}, {"id": "G11|U02", "g": "Grants, credit & financing mechanisms", "u": "Person-month", "n": 3, "med": 3500, "lo": 3500, "hi": 4250, "p": 1, "c": "Low"}, {"id": "G11|U04", "g": "Grants, credit & financing mechanisms", "u": "Event (workshop / meeting / training)", "n": 4, "med": 2500, "lo": 1875, "hi": 3500, "p": 2, "c": "Low"}, {"id": "G11|U11", "g": "Grants, credit & financing mechanisms", "u": "Lump sum", "n": 3, "med": 560, "lo": 560, "hi": 6780, "p": 2, "c": "Low"}];
+const LIBD=LIB.map(x=>({...x})),LIBN=[{"id": "G1|U01", "g": "Technical expertise & consultancy", "u": "Person-day", "n": 54, "p": 7, "med": 418.87, "lo": 312.93, "hi": 457.79, "c": "High"}, {"id": "G1|U02", "g": "Technical expertise & consultancy", "u": "Person-month", "n": 10, "p": 4, "med": 1961.29, "lo": 1336.13, "hi": 2146.01, "c": "High"}, {"id": "G1|U03", "g": "Technical expertise & consultancy", "u": "Per year / recurring annual", "n": 4, "p": 1, "med": 66195.68, "lo": 48142.31, "hi": 84249.05, "c": "Low"}, {"id": "G1|U07", "g": "Technical expertise & consultancy", "u": "Administrative unit / site", "n": 3, "p": 3, "med": 3141.51, "lo": 1668.82, "hi": 10977.19, "c": "Low"}, {"id": "G1|U08", "g": "Technical expertise & consultancy", "u": "Trip / mission / travel", "n": 4, "p": 1, "med": 261.99, "lo": 216.82, "hi": 320.71, "c": "Low"}, {"id": "G2|U01", "g": "Training & capacity building", "u": "Person-day", "n": 10, "p": 4, "med": 279.25, "lo": 240.71, "hi": 463.29, "c": "High"}, {"id": "G2|U02", "g": "Training & capacity building", "u": "Person-month", "n": 6, "p": 1, "med": 1680.55, "lo": 1680.55, "hi": 4453.45, "c": "Low"}, {"id": "G2|U03", "g": "Training & capacity building", "u": "Per year / recurring annual", "n": 4, "p": 2, "med": 8057.93, "lo": 4017.59, "hi": 13540.03, "c": "Low"}, {"id": "G2|U04", "g": "Training & capacity building", "u": "Event (workshop / meeting / training)", "n": 28, "p": 7, "med": 1047.17, "lo": 505.44, "hi": 2496.76, "c": "High"}, {"id": "G2|U05", "g": "Training & capacity building", "u": "Household / person / beneficiary", "n": 3, "p": 2, "med": 14.44, "lo": 11.82, "hi": 97.56, "c": "Low"}, {"id": "G2|U07", "g": "Training & capacity building", "u": "Administrative unit / site", "n": 12, "p": 4, "med": 3316.04, "lo": 1076.53, "hi": 5448.57, "c": "High"}, {"id": "G2|U09", "g": "Training & capacity building", "u": "Item / equipment unit", "n": 3, "p": 2, "med": 1806.84, "lo": 1067.53, "hi": 2981.29, "c": "Low"}, {"id": "G2|U11", "g": "Training & capacity building", "u": "Lump sum", "n": 6, "p": 1, "med": 3679.76, "lo": 3490.57, "hi": 11438.95, "c": "Low"}, {"id": "G3|U01", "g": "Meetings, consultation & awareness", "u": "Person-day", "n": 3, "p": 1, "med": 463.29, "lo": 347.47, "hi": 463.29, "c": "Low"}, {"id": "G3|U03", "g": "Meetings, consultation & awareness", "u": "Per year / recurring annual", "n": 6, "p": 3, "med": 41009.95, "lo": 7687.08, "hi": 108320.2, "c": "Medium"}, {"id": "G3|U04", "g": "Meetings, consultation & awareness", "u": "Event (workshop / meeting / training)", "n": 24, "p": 7, "med": 2926.42, "lo": 1999.5, "hi": 7992.86, "c": "High"}, {"id": "G3|U07", "g": "Meetings, consultation & awareness", "u": "Administrative unit / site", "n": 8, "p": 2, "med": 3822.31, "lo": 1431.31, "hi": 7213.35, "c": "Medium"}, {"id": "G3|U09", "g": "Meetings, consultation & awareness", "u": "Item / equipment unit", "n": 5, "p": 2, "med": 437.17, "lo": 131.28, "hi": 1911.64, "c": "Medium"}, {"id": "G4|U01", "g": "Studies, assessments & planning", "u": "Person-day", "n": 30, "p": 5, "med": 555.95, "lo": 240.71, "hi": 555.95, "c": "High"}, {"id": "G4|U02", "g": "Studies, assessments & planning", "u": "Person-month", "n": 12, "p": 1, "med": 2352.76, "lo": 1680.55, "hi": 8402.73, "c": "Low"}, {"id": "G4|U03", "g": "Studies, assessments & planning", "u": "Per year / recurring annual", "n": 5, "p": 4, "med": 38513.85, "lo": 4846.97, "hi": 44128.95, "c": "Medium"}, {"id": "G4|U04", "g": "Studies, assessments & planning", "u": "Event (workshop / meeting / training)", "n": 13, "p": 4, "med": 7422.81, "lo": 3922.57, "hi": 12552.23, "c": "High"}, {"id": "G4|U07", "g": "Studies, assessments & planning", "u": "Administrative unit / site", "n": 9, "p": 3, "med": 2451.61, "lo": 147.1, "hi": 4375.66, "c": "Medium"}, {"id": "G4|U11", "g": "Studies, assessments & planning", "u": "Lump sum", "n": 5, "p": 1, "med": 6981.14, "lo": 5584.91, "hi": 10471.71, "c": "Low"}, {"id": "G5|U01", "g": "Climate information, early warning & monitoring systems", "u": "Person-day", "n": 7, "p": 3, "med": 361.07, "lo": 270.8, "hi": 361.07, "c": "Medium"}, {"id": "G6|U01", "g": "Water & climate-resilient infrastructure", "u": "Person-day", "n": 4, "p": 2, "med": 555.95, "lo": 507.23, "hi": 555.95, "c": "Low"}, {"id": "G6|U07", "g": "Water & climate-resilient infrastructure", "u": "Administrative unit / site", "n": 8, "p": 2, "med": 10393.02, "lo": 3664.44, "hi": 66409.86, "c": "Medium"}, {"id": "G7|U04", "g": "Ecosystem, land & forest restoration", "u": "Event (workshop / meeting / training)", "n": 3, "p": 1, "med": 1940.6, "lo": 1940.6, "hi": 2425.76, "c": "Low"}, {"id": "G8|U04", "g": "Agriculture & livelihood support", "u": "Event (workshop / meeting / training)", "n": 3, "p": 1, "med": 120.36, "lo": 120.36, "hi": 240.71, "c": "Low"}, {"id": "G8|U05", "g": "Agriculture & livelihood support", "u": "Household / person / beneficiary", "n": 6, "p": 1, "med": 80.74, "lo": 52.51, "hi": 138.5, "c": "Low"}, {"id": "G8|U07", "g": "Agriculture & livelihood support", "u": "Administrative unit / site", "n": 12, "p": 4, "med": 7362.35, "lo": 6170.3, "hi": 8471.08, "c": "High"}, {"id": "G8|U11", "g": "Agriculture & livelihood support", "u": "Lump sum", "n": 4, "p": 1, "med": 3158.97, "lo": 3158.97, "hi": 3158.97, "c": "Low"}, {"id": "G9|U02", "g": "Programme management, M&E & operating costs", "u": "Person-month", "n": 16, "p": 4, "med": 2161.91, "lo": 542.38, "hi": 2212.99, "c": "High"}, {"id": "G9|U03", "g": "Programme management, M&E & operating costs", "u": "Per year / recurring annual", "n": 5, "p": 3, "med": 9806.43, "lo": 9806.43, "hi": 12035.58, "c": "Medium"}, {"id": "G9|U04", "g": "Programme management, M&E & operating costs", "u": "Event (workshop / meeting / training)", "n": 3, "p": 3, "med": 16261.59, "lo": 8536.08, "hi": 20166.37, "c": "Low"}, {"id": "G9|U05", "g": "Programme management, M&E & operating costs", "u": "Household / person / beneficiary", "n": 3, "p": 1, "med": 1057.26, "lo": 881.05, "hi": 1233.47, "c": "Low"}, {"id": "G9|U07", "g": "Programme management, M&E & operating costs", "u": "Administrative unit / site", "n": 3, "p": 2, "med": 1312.83, "lo": 705.45, "hi": 1637.06, "c": "Low"}, {"id": "G10|U09", "g": "Equipment, goods & ICT", "u": "Item / equipment unit", "n": 5, "p": 2, "med": 1626.16, "lo": 1400.9, "hi": 15358.17, "c": "Medium"}, {"id": "G11|U01", "g": "Grants, credit & financing mechanisms", "u": "Person-day", "n": 3, "p": 2, "med": 694.94, "lo": 462.0, "hi": 694.94, "c": "Low"}, {"id": "G11|U02", "g": "Grants, credit & financing mechanisms", "u": "Person-month", "n": 3, "p": 1, "med": 2352.76, "lo": 2352.76, "hi": 2856.93, "c": "Low"}, {"id": "G11|U04", "g": "Grants, credit & financing mechanisms", "u": "Event (workshop / meeting / training)", "n": 5, "p": 3, "med": 2016.66, "lo": 1940.6, "hi": 3361.09, "c": "Medium"}];let BASIS="nominal";
+function setBasis(k){BASIS=k==="normalised"?"normalised":"nominal";LIB.length=0;LIB.push(...(BASIS==="normalised"?LIBN:LIBD).map(x=>({...x})))}
+const RS=regionStats(GEO);Object.keys(RS).forEach(k=>{GEO[k]=RS[k].idx});
+const D={cont:.10,om:.05,disc:.08,startYear:2026,horizon:15,discLo:.05,discHi:.12,bLo:-.2,bHi:.2,proxy:1,benef:22900};
+let P={...D},rows=[];const $=id=>document.getElementById(id);
+const fm=n=>n==null||isNaN(n)?"–":Math.round(n).toLocaleString("en-US"),fp=n=>n==null?"n/a":(n*100).toFixed(1)+"%",fx=n=>n==null?"n/a":n.toFixed(2)+"×";
+const E=(t,a={},...c)=>{const e=document.createElement(t);Object.entries(a).forEach(([k,v])=>e[k]=v);c.flat().forEach(x=>e.append(x));return e};
+const PD=[["cont","Contingency (%)",100],["om","O&M rate on CAPEX (% per year)",100],["disc","Discount rate (%)",100],["startYear","Start year",1],["horizon","Evaluation period (years)",1],["discLo","Low discount rate (%)",100],["discHi","High discount rate (%)",100],["bLo","Low benefit scenario (%)",100],["bHi","High benefit scenario (%)",100],["proxy","Index if no country data",1],["benef","People reached (total)",1]];
+PD.forEach(([k,l,m])=>{const i=E("input",{type:"number",step:"any",value:+(P[k]*m).toFixed(4)});i.dataset.k=k;i.oninput=()=>{const v=parseFloat(i.value);if(!isNaN(v)){P[k]=v/m;if(k==="horizon")P.horizon=Math.min(30,Math.max(6,Math.round(v)));update()}};$("params").append(E("div",{},E("label",{textContent:l}),i))});
+const BI={nominal:"Benchmarks are nominal USD from projects in 10 countries, so they mix price levels (draft library).",normalised:"Benchmarks rebased to Kenya prices using World Bank 2024 price levels of the 10 source countries. Experimental: the cell classification is a reconstruction (it reproduces 14 of 48 draft cells) and inflation is not adjusted."};
+(function(){const s=E("select",{id:"basis"});s.append(E("option",{value:"nominal",textContent:"Nominal USD (draft library)"}),E("option",{value:"normalised",textContent:"Kenya price level (experimental)"}));$("params").append(E("div",{style:"grid-column:1/-1"},E("label",{textContent:"Benchmark price basis",htmlFor:"basis"}),s,E("div",{className:"mut",id:"basisInfo",textContent:BI.nominal,style:"margin-top:4px"})));s.onchange=()=>applyBasis(s.value)})();
+const COLS=[["name","Intervention","text"],["sector","Sector","text"],["country","Country","c"],["type","Type","t"],["bm","Benchmark (optional)","b"],["ulab","Unit","ul"],["qty","Qty","number"],["unit","Unit cost (USD)","number"],["phasing","Phasing","p"],["intl","Intl finance (%)","number"],["ben","Benefit / yr (USD)","number"],["benStart","Benefit start","number"],["ramp","Ramp-up (yrs)","number"]];
+const PL={Upfront:"Upfront (year 1)",Even:"Even, 6 years",Even_4yr:"Even, 4 years",Phased_50_30_20:"Phased 50/30/20",Phased_40_20_15_10_10_5:"Phased 40/20/15/10/10/5"};
+function drawTable(){const t=$("tbl");t.innerHTML="";t.append(E("tr",{},COLS.map(c=>E("th",{textContent:c[1]})),E("th")));
+rows.forEach((r,i)=>{const tr=E("tr");COLS.forEach(([k,,ty])=>{let el;
+if(ty==="ul"){const td=E("td",{textContent:r.ulab||"–",className:"mut"});td.dataset.k="ul";tr.append(td);return}
+if(ty==="b"){el=E("select");el.dataset.k="bm";el.append(E("option",{value:"",textContent:"Custom unit cost"}));let og=null,lg=null;
+LIB.forEach(b=>{if(b.g!==lg){og=E("optgroup",{label:b.g});el.append(og);lg=b.g}og.append(E("option",{value:b.id,textContent:b.u+" · median "+fm(b.med)+" ("+(b.c==="Low"?"indicative only":b.c)+", n="+b.n+")"}))});
+el.value=r.bm||"";el.onchange=()=>{const b=LIB.find(x=>x.id===el.value);if(b){r.bm=b.id;r.unit=b.med;r.lo=b.lo;r.hi=b.hi;r.ulab=b.u;r.conf=b.c}else{r.bm="";r.lo=r.hi=null;r.ulab="";r.conf=""}drawTable();update()};tr.append(E("td",{},el));return}
+if(ty==="c"){el=E("select");[["N/A","N/A (not price-adjusted)"],...Object.keys(GEO).sort().map(c=>[c,GEO[c]==null?c+" (no data)":c])].forEach(([v,l])=>el.append(E("option",{value:v,textContent:l})))}
+else if(ty==="t"){el=E("select");["CAPEX","OPEX"].forEach(v=>el.append(E("option",{value:v,textContent:v})))}
+else if(ty==="p"){el=E("select");Object.keys(PL).forEach(v=>el.append(E("option",{value:v,textContent:PL[v]})))}
+else el=E("input",{type:ty,step:"any"});el.value=r[k]??"";el.oninput=el.onchange=()=>{r[k]=ty==="number"?parseFloat(el.value):el.value;if(k==="unit"&&r.bm){r.bm="";r.lo=r.hi=null;r.ulab="";r.conf="";tr.querySelector("[data-k=bm]").value="";tr.querySelector("[data-k=ul]").textContent="–"}update()};tr.append(E("td",{},el))});
+tr.append(E("td",{},E("button",{className:"s",textContent:"✕",onclick:()=>{rows.splice(i,1);drawTable();update()}})));t.append(tr)})}
+function update(){const R=runModel(P,rows,GEO),p=R.port;
+$("warn").innerHTML="";R.warn.length&&$("warn").append(E("div",{className:"note",textContent:"No price-level data for "+R.warn.join(", ")+". An index of "+P.proxy.toFixed(2)+" was used. Replace it with a documented regional proxy."}));
+{const nz=rows.filter(r=>(+r.qty||0)>0&&!(+r.unit>0)).length;nz&&$("warn").append(E("div",{className:"note",textContent:nz+" intervention"+(nz===1?" has":"s have")+" no unit cost, so "+(nz===1?"it adds":"they add")+" nothing to the totals. Enter a unit cost or remove "+(nz===1?"it":"them")+"."}))}
+R.nL&&$("warn").append(E("div",{className:"note",textContent:R.nL+" intervention(s) use an indicative-only benchmark (few observations or projects). Treat their range as a rough guide."}));
+const K=[["Base cost",fm(R.base)],["Price-adjusted cost",fm(R.gcost)],["With contingency",fm(R.grand)],...(R.nB?[["Cost range from benchmarks",fm(R.gLo)+" – "+fm(R.gHi)]]:[]),["International finance",fm(R.intl)],["Domestic co-finance",fm(R.dom)],["Cost per person reached",P.benef>0?fm(R.gcost/P.benef):"–"],["Portfolio NPV",fm(p.npv)],["Benefit-cost ratio",fx(p.bcr)],["IRR",fp(p.irr)],["Payback (years)",p.payback==null?"beyond horizon":p.payback]];
+$("kpi").innerHTML="";K.forEach(([l,v])=>$("kpi").append(E("div",{className:"k"},E("b",{textContent:v}),E("span",{textContent:l+(/cost|finance|NPV/i.test(l)&&!/ratio|person/.test(l)?" (USD)":"")}))));
+const H=P.horizon,mx=Math.max(1,...R.PC,...R.PB),W=Math.max(640,H*40),h=180,bw=W/H;let s=`<svg viewBox="0 0 ${W} ${h+24}" width="100%" style="min-width:${W}px;font-size:10px">`;
+for(let t=0;t<H;t++){const x=t*bw,a=R.PC[t]/mx*h,b=R.PB[t]/mx*h;s+=`<rect x="${x+3}" y="${h-a}" width="${bw/2-4}" height="${a}" fill="var(--navy)"/><rect x="${x+bw/2}" y="${h-b}" width="${bw/2-4}" height="${b}" fill="var(--teal)"/><text x="${x+bw/2}" y="${h+14}" text-anchor="middle" fill="var(--mut)">${P.startYear+t}</text>`}
+$("chart").innerHTML=s+`</svg><div class="mut"><span style="color:var(--navy)">■</span> Cost &nbsp; <span style="color:var(--teal)">■</span> Benefit</div>`;
+const T=$("cba");T.innerHTML="";T.append(E("tr",{},["Intervention","Price-adj. cost","PV cost","PV benefit","NPV","BCR","Payback","IRR","Result"].map((x,i)=>E("th",{textContent:x,className:i?"n":""}))));
+[...R.rows,{name:"PORTFOLIO",geoCost:R.gcost,...p}].forEach(r=>T.append(E("tr",{},E("td",{textContent:r.name,style:r.name==="PORTFOLIO"?"font-weight:700":""}),...[fm(r.geoCost),fm(r.pc),fm(r.pb),fm(r.npv),fx(r.bcr),r.payback==null?">"+H:r.payback,fp(r.irr)].map(v=>E("td",{textContent:v,className:"n"})),E("td",{textContent:r.npv>0?"Net positive":"Net negative",className:r.npv>0?"pos":"neg"}))));
+const lab=["Low","Base","High"];let g=`<table><tr><th>NPV (USD)</th>${R.fs.map((f,i)=>`<th class=n>Benefits ${lab[i]} (${f===1?"base":((f-1)*100).toFixed(0)+"%"})</th>`).join("")}</tr>`;
+R.rates.forEach((r,i)=>g+=`<tr><td>Discount ${(r*100).toFixed(0)}%</td>${R.npv[i].map(v=>`<td class=n>${fm(v)}</td>`).join("")}</tr>`);
+g+=`</table><br><table><tr><th>Benefit-cost ratio</th>${lab.map(l=>`<th class=n>${l}</th>`).join("")}</tr>`;R.rates.forEach((r,i)=>g+=`<tr><td>Discount ${(r*100).toFixed(0)}%</td>${R.bcr[i].map(v=>`<td class=n>${fx(v)}</td>`).join("")}</tr>`);$("sens").innerHTML=g+"</table>"}
+/* ---- Import panel ---- */
+const GN={};LIB.forEach(b=>{const k=b.id.split("|")[0];if(!GN[k])GN[k]=b.g});const GKEYS=Object.keys(GN).sort((a,b)=>+a.slice(1)-+b.slice(1));
+let IMP={drafts:[],note:""};
+(function(){const s=$("impLoc");s.append(E("option",{value:"",textContent:"Select a country or region…"}));const rg=E("optgroup",{label:"Regions (average of countries with data)"});Object.keys(RS).sort().forEach(k=>rg.append(E("option",{value:k,textContent:k})));s.append(rg);
+const cg=E("optgroup",{label:"Countries"});Object.keys(GEO).filter(k=>!k.endsWith(REGION_SUFFIX)).sort().forEach(k=>cg.append(E("option",{value:k,textContent:GEO[k]==null?k+" (no data: proxy index)":k})));s.append(cg);s.append(E("option",{value:"N/A",textContent:"No price adjustment (N/A)"}))})();
+function locInfo(){const v=$("impLoc").value,el=$("impLocInfo");if(!v){el.textContent="Costs are multiplied by the location's price-level index (Kenya = 1.00).";return}
+ if(v==="N/A"){el.textContent="Benchmarks are used as they are, with no price adjustment.";return}
+ if(GEO[v]==null){el.textContent="No price-level data for "+v+": the proxy index in Assumptions ("+(+P.proxy).toFixed(2)+") will be used.";return}
+ const rs=RS[v];el.textContent=rs?"Cost index "+GEO[v].toFixed(3)+": unweighted average of "+rs.n+" of "+rs.total+" countries (range "+rs.lo.toFixed(2)+"–"+rs.hi.toFixed(2)+(rs.missing.length?"; no data for "+rs.missing.join(", "):"")+").":"Cost index "+GEO[v].toFixed(3)+" for "+v+" (Kenya = 1.00)."}
+const impMsg=(t,w)=>{const e=$("impMsg");e.innerHTML="";if(t)e.append(E("div",{className:w?"note":"mut",textContent:t}))};
+function impIdx(d){const loc=d.country||$("impLoc").value;if(!d.adjust||!loc||loc==="N/A")return 1;const g=GEO[loc];return g==null?(+P.proxy||1):g}
+function setDrafts(cands,note,label){IMP.drafts=cands.map(c=>{const d=draftRow(c,LIB);d.cand=c;if(c.country){const k=Object.keys(GEO).find(x=>x.toLowerCase()===String(c.country).toLowerCase());if(k)d.country=k;else d.flags.push("Country “"+c.country+"” not recognised: the selected location is used")}return d});IMP.note=note||"";
+ if(!IMP.drafts.length)impMsg("No activities found in "+label+". In a concept note, activities should be bullet points, numbered items or sentences such as “The project will train…”. You can also paste the text or upload a list.",1);drawImp()}
+function drawImp(){const t=$("impTbl");t.innerHTML="";$("impBtns").innerHTML="";const D2=IMP.drafts;if(!D2.length)return;
+ const n=D2.length,bm=D2.filter(d=>d.src==="benchmark").length,st=D2.filter(d=>d.src==="stated").length,ind=D2.filter(d=>d.src==="indicative").length,need=D2.filter(d=>d.src==="none"||d.needsQty).length;
+ impMsg("Found "+n+" activit"+(n===1?"y":"ies")+": "+bm+" priced from benchmarks, "+st+" with a cost stated in the file, "+ind+" with an indicative-only benchmark (unticked), and "+need+" needing a quantity or unit cost. "+(IMP.note?IMP.note+" ":"")+"Change the activity type to re-match a benchmark.");
+ t.append(E("tr",{},["","Activity","Type","Qty","Unit","Unit cost (USD)","Est. cost (USD)","Basis and notes"].map((x,i)=>E("th",{textContent:x,className:i>=3&&i<=6&&i!==4?"n":""}))));
+ D2.forEach((d,i)=>{const cost=d.qty*d.unit*impIdx(d);const tr=E("tr");
+  const cb=E("input",{type:"checkbox",checked:d.inc});cb.onchange=()=>{d.inc=cb.checked;sumImp()};tr.append(E("td",{},cb));
+  const nm=E("input",{type:"text",value:d.text});nm.onchange=()=>{d.text=nm.value};tr.append(E("td",{},nm));
+  const sel=E("select");sel.append(E("option",{value:"",textContent:"(unclear)"}));GKEYS.forEach(k=>sel.append(E("option",{value:k,textContent:GN[k]})));sel.value=d.group||"";sel.onchange=()=>{const nd=draftRow(d.cand,LIB,sel.value||null);nd.cand=d.cand;nd.country=d.country;nd.text=d.text;IMP.drafts[i]=nd;drawImp()};tr.append(E("td",{},sel));
+  const q=E("input",{type:"number",step:"any",value:d.qty});q.onchange=()=>{const v=parseFloat(q.value);d.qty=isNaN(v)?0:v;if(d.needsQty&&d.qty>0){d.needsQty=false;if(d.src!=="indicative")d.inc=true;d.flags=d.flags.filter(f=>!/^Quantity needed|^The text gives/.test(f))}drawImp()};tr.append(E("td",{},q));
+  tr.append(E("td",{textContent:d.unitLabel||"–",className:"mut"}));
+  const u=E("input",{type:"number",step:"any",value:+d.unit.toFixed(2)});u.onchange=()=>{const v=parseFloat(u.value);d.unit=isNaN(v)?0:v;d.edited=true;if(d.unit>0&&d.inc===false&&d.src==="none")d.inc=true;drawImp()};tr.append(E("td",{},u));
+  tr.append(E("td",{textContent:d.inc?fm(cost):"–",className:"n"}));
+  const fl=E("div",{className:"fl"});d.flags.forEach((f,k)=>{if(k)fl.append(" · ");fl.append(/^(Indicative|Quantity needed|No benchmark|Activity type unclear|Country)/.test(f)?E("b",{textContent:f}):f)});if(d.edited)fl.append(" · Unit cost edited");tr.append(E("td",{},fl));t.append(tr)});
+ const sm=E("div",{className:"mut",id:"impSum",style:"margin:8px 0"});$("impBtns").append(sm);
+ const add=E("button",{textContent:"Add selected to interventions"}),rpl=E("button",{className:"s",textContent:"Replace interventions with selected"}),clr=E("button",{className:"s",textContent:"Clear list"});
+ add.onclick=()=>commitImp(false);rpl.onclick=()=>commitImp(true);clr.onclick=()=>{IMP.drafts=[];drawImp();impMsg("")};$("impBtns").append(add,rpl,clr);sumImp()}
+function sumImp(){const sel=IMP.drafts.filter(d=>d.inc);const tot=sel.reduce((a,d)=>a+d.qty*d.unit*impIdx(d),0);const e=$("impSum");if(e)e.textContent=sel.length+" selected, estimated cost USD "+fm(tot)+" (price-adjusted, before contingency).";
+ [...$("impTbl").querySelectorAll("tr")].slice(1).forEach((tr,i)=>{const d=IMP.drafts[i];if(d)tr.children[6].textContent=d.inc?fm(d.qty*d.unit*impIdx(d)):"–"})}
+function commitImp(replace){const loc=$("impLoc").value,sel=IMP.drafts.filter(d=>d.inc);if(!sel.length){impMsg("Tick at least one activity to add.",1);return}
+ if(!loc&&sel.some(d=>d.adjust&&!d.country)){impMsg("Choose a location first (or “No price adjustment”), so the costs can be priced for it.",1);return}
+ const mk=d=>{const b=d.bm?LIB.find(x=>x.id===d.bm):null,ok=b&&Math.abs(d.unit-b.med)<1e-9;return{name:d.text,sector:GN[d.group]||"",country:d.adjust?(d.country||loc):"N/A",type:d.type,qty:d.qty,unit:d.unit,phasing:"Even_4yr",intl:100,ben:0,benStart:P.startYear,ramp:1,ulab:d.unitLabel&&d.unitLabel!=="lump sum"||ok?d.unitLabel:"",...(ok?{bm:b.id,lo:b.lo,hi:b.hi,conf:b.c}:{})}};
+ const nr=sel.map(mk);rows=replace?nr:rows.concat(nr);IMP.drafts=IMP.drafts.filter(d=>!d.inc);drawImp();drawTable();update();
+ impMsg("Added "+nr.length+" intervention"+(nr.length===1?"":"s")+(replace?" (replacing the previous list)":"")+". Benefits are set to 0: enter them to see NPV and BCR. Contingency and the other assumptions are above."+(IMP.drafts.length?" The remaining "+IMP.drafts.length+" are still listed.":""))}
+$("impLoc").onchange=()=>{locInfo();if(IMP.drafts.length)drawImp()};locInfo();
+$("impFile").onchange=()=>{const f=$("impFile").files[0];if(!f)return;if(f.size>30e6){impMsg("That file is larger than 30 MB.",1);$("impFile").value="";return}impMsg("Reading "+f.name+"…");
+ const fr=new FileReader();fr.onerror=()=>impMsg("Could not read the file.",1);fr.onload=async()=>{try{const r=await readSource(f.name,new Uint8Array(fr.result));
+  if(r.kind==="text"){const c=activitiesFromText(r.text);setDrafts(c,"Read "+r.text.length.toLocaleString("en-US")+" characters of text.",f.name)}else{const x=tableToCandidates(r.rows);setDrafts(x.cands,x.note,f.name)}}catch(e){IMP.drafts=[];drawImp();impMsg(e.message||"Could not read the file.",1)}$("impFile").value=""};fr.readAsArrayBuffer(f)};
+$("impPaste").onclick=()=>{const t=$("impText").value;if(!t.trim()){impMsg("Paste some text first.",1);return}setDrafts(activitiesFromText(t),"","the pasted text")};
+
+function applyBasis(k){setBasis(k);$("basis").value=BASIS;$("basisInfo").textContent=BI[BASIS];let up=0,cu=0;
+ rows.forEach(r=>{if(r.bm){const b=LIB.find(x=>x.id===r.bm);if(b){r.unit=b.med;r.lo=b.lo;r.hi=b.hi;r.ulab=b.u;r.conf=b.c;up++}else{r.bm="";r.lo=r.hi=null;r.ulab="";r.conf="";cu++}}});
+ if(IMP.drafts.length){IMP.drafts=IMP.drafts.map(d=>{const nd=draftRow(d.cand,LIB,d.group);nd.cand=d.cand;nd.country=d.country;nd.text=d.text;return nd});drawImp()}
+ drawTable();update();scmsg("Benchmark basis: "+(BASIS==="normalised"?"Kenya price level":"nominal USD")+". "+up+" benchmark row"+(up===1?"":"s")+" re-priced"+(cu?", "+cu+" converted to custom because the cell does not exist in this basis":"")+(IMP.drafts.length?"; the import list was re-matched":"")+".")}
+const scmsg=(t,w)=>{const e=$("scmsg");e.innerHTML="";e.append(E("div",{className:w?"note":"",textContent:t}))};
+$("sv").onclick=()=>{const d=new Date(),blob=new Blob([scenarioToJson(P,rows)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="NDC_NAP_scenario_"+d.toISOString().slice(0,10)+".json";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);scmsg("Scenario saved ("+rows.length+" intervention"+(rows.length===1?"":"s")+"). Open it later with “Open scenario”.")};
+$("ld").onclick=()=>$("lf").click();
+$("lf").onchange=()=>{const f=$("lf").files[0];if(!f)return;if(f.size>2e6){scmsg("That file is too large to be a scenario.",1);$("lf").value="";return}
+const fr=new FileReader();fr.onload=()=>{try{let bs=BASIS;try{const pk=JSON.parse(String(fr.result));if(pk&&pk.format==="ndc-nap-costing-scenario"&&(pk.basis==="normalised"||pk.basis==="nominal"))bs=pk.basis}catch(e){}
+const r=parseScenario(String(fr.result),{GEO,LIB:bs==="normalised"?LIBN:LIBD,PH,D});if(bs!==BASIS){setBasis(bs);$("basis").value=BASIS;$("basisInfo").textContent=BI[BASIS]}P=r.P;rows=r.rows;PD.forEach(([k,,m])=>{const el=$("params").querySelector('[data-k="'+k+'"]');if(el)el.value=+(P[k]*m).toFixed(4)});drawTable();update();
+r.warn.sort((x,y)=>/country|skipped|benchmark/.test(y)-/country|skipped|benchmark/.test(x));scmsg("Opened "+f.name+": "+rows.length+" intervention"+(rows.length===1?"":"s")+"."+(r.warn.length?" Adjusted while opening: "+r.warn.slice(0,6).join(" ")+(r.warn.length>6?" (+"+(r.warn.length-6)+" more)":""):""),r.warn.length)}catch(e){scmsg("Could not open the file: "+e.message,1)}$("lf").value=""};
+fr.onerror=()=>{scmsg("Could not read the file.",1);$("lf").value=""};fr.readAsText(f)};
+$("pdf").onclick=()=>{if(!rows.length){$("warn").innerHTML="";$("warn").append(E("div",{className:"note",textContent:"Add at least one intervention before exporting."}));return}
+const R=runModel(P,rows,GEO),d=new Date(),iso=d.toISOString().replace(/[-:T]/g,"").slice(0,14),stamp=d.toISOString().slice(0,16).replace("T"," ")+" UTC";
+const blob=new Blob([buildPdf(P,rows,R,GEO,{stamp,iso,basis:BASIS})],{type:"application/pdf"});
+const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="NDC_NAP_costing_summary_"+d.toISOString().slice(0,10)+".pdf";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$("xl").onclick=()=>{if(!rows.length){$("warn").innerHTML="";$("warn").append(E("div",{className:"note",textContent:"Add at least one intervention before exporting."}));return}
+const R=runModel(P,rows,GEO),d=new Date(),stamp=d.toISOString().slice(0,16).replace("T"," ")+" UTC";
+const blob=new Blob([buildXlsx(P,rows,R,GEO,{stamp,basis:BASIS})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="NDC_NAP_costing_export_"+d.toISOString().slice(0,10)+".xlsx";document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$("ex").onclick=()=>{rows=EX.map(x=>({...x}));drawTable();update()};
+$("add").onclick=()=>{rows.push({name:"New intervention",sector:"",country:"Kenya",type:"CAPEX",qty:1,unit:0,phasing:"Even_4yr",intl:100,ben:0,benStart:P.startYear,ramp:1});drawTable();update()};
+$("clr").onclick=()=>{rows=[];drawTable();update()};
+P.benef=22900;$("ex").onclick();
+</script></body></html>
